@@ -24,8 +24,17 @@ import {
 } from "@/lib/scanners/healthScorer";
 import { RECOMMENDATIONS, THREAT_ALERTS } from "@/lib/data";
 import { generateSecurityReport } from "@/lib/reports/reportGenerator";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  insertScanHistory,
+  fetchScanHistory,
+  saveCyberHealth,
+  fetchLatestCyberHealth,
+  insertRecommendation,
+  fetchRecommendationsList,
+} from "@/lib/supabase/db";
 
-const STORAGE_KEY = "securenet_ai_security_state_v4";
+const STORAGE_KEY = "securenet_ai_security_state_v5";
 
 const DEFAULT_SCANS: ScanRecord[] = [
   {
@@ -194,6 +203,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(false);
 
   // Toast Dispatchers
   const removeToast = useCallback((id: string) => {
@@ -218,6 +228,89 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [removeToast]
   );
+
+  // Hydrate state from Supabase Cloud on mount if configured
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!isSupabaseConfigured()) {
+      return;
+    }
+
+    const initCloudState = async () => {
+      try {
+        const [scansRes, recsRes, healthRes] = await Promise.allSettled([
+          fetchScanHistory(50),
+          fetchRecommendationsList(20),
+          fetchLatestCyberHealth(),
+        ]);
+
+        if (!isMounted) return;
+
+        let hasSuccess = false;
+
+        if (
+          scansRes.status === "fulfilled" &&
+          scansRes.value.success &&
+          scansRes.value.data &&
+          scansRes.value.data.length > 0
+        ) {
+          setRecentScans(scansRes.value.data);
+          hasSuccess = true;
+        }
+
+        if (
+          recsRes.status === "fulfilled" &&
+          recsRes.value.success &&
+          recsRes.value.data &&
+          recsRes.value.data.length > 0
+        ) {
+          setRecommendations(recsRes.value.data);
+          hasSuccess = true;
+        }
+
+        if (
+          healthRes.status === "fulfilled" &&
+          healthRes.value.success &&
+          healthRes.value.data
+        ) {
+          hasSuccess = true;
+        }
+
+        if (hasSuccess) {
+          setIsCloudConnected(true);
+        } else {
+          // Both tables may be empty or error encountered
+          const errorOccurred = [scansRes, recsRes, healthRes].some(
+            (r) =>
+              r.status === "rejected" ||
+              (r.status === "fulfilled" && !r.value.success)
+          );
+          if (errorOccurred) {
+            showToast({
+              type: "warning",
+              title: "Cloud Database Warning",
+              message: "Database connection failed. Results saved locally.",
+            });
+          }
+        }
+      } catch {
+        if (isMounted) {
+          showToast({
+            type: "warning",
+            title: "Cloud Connection Warning",
+            message: "Database connection failed. Results saved locally.",
+          });
+        }
+      }
+    };
+
+    initCloudState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showToast]);
 
   // Sync to browser storage on updates
   useEffect(() => {
@@ -292,11 +385,12 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // If a dangerous item is found, add an immediate tailored recommendation
+      let generatedRec: SecurityRecommendation | null = null;
       if (
         scanData.threatLevel === "high" ||
         scanData.threatLevel === "critical"
       ) {
-        const newRec: SecurityRecommendation = {
+        generatedRec = {
           id: `rec-auto-${Date.now()}`,
           title: `Contain Threat: ${scanData.input.substring(0, 28)}...`,
           description: `Immediate remediation advised for detected ${scanData.type} threat: ${scanData.result}.`,
@@ -314,10 +408,63 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
           resolved: false,
         };
 
-        setRecommendations((prev) => [newRec, ...prev]);
+        setRecommendations((prev) => [generatedRec!, ...prev]);
+      }
+
+      // Supabase Persistence with Graceful Error Handling
+      if (isSupabaseConfigured()) {
+        // 1. Insert into scan_history table
+        insertScanHistory(newRecord)
+          .then((res) => {
+            if (!res.success) {
+              showToast({
+                type: "warning",
+                title: "Database Sync Warning",
+                message: "Database connection failed. Results saved locally.",
+              });
+            }
+          })
+          .catch(() => {
+            showToast({
+              type: "warning",
+              title: "Database Sync Warning",
+              message: "Database connection failed. Results saved locally.",
+            });
+          });
+
+        // 2. Persist updated cyber_health metrics
+        const updatedScans = [newRecord, ...recentScans];
+        const updatedHealth = computeCyberHealthScore(updatedScans);
+        const updatedThreat = deriveGlobalThreatLevel(updatedScans);
+        const updatedConfidence =
+          updatedScans.length === 0
+            ? 99.4
+            : Math.round(
+                (updatedScans.reduce((a, s) => a + (s.confidence || 95), 0) /
+                  updatedScans.length) *
+                  10
+              ) / 10;
+
+        saveCyberHealth({
+          health_score: updatedHealth.overall,
+          threat_level: updatedThreat,
+          confidence_score: updatedConfidence,
+        }).catch(() => {
+          // Silent fallback since scan_history already handles notifications
+        });
+
+        // 3. Persist recommendation if generated
+        if (generatedRec) {
+          insertRecommendation({
+            recommendation: generatedRec.title,
+            priority: generatedRec.impact,
+          }).catch(() => {
+            // Non-blocking
+          });
+        }
       }
     },
-    [showToast]
+    [recentScans, showToast]
   );
 
   const clearHistory = useCallback(() => {
@@ -364,6 +511,60 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
+  const refreshFromDatabase = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      showToast({
+        type: "info",
+        title: "Local State Active",
+        message:
+          "Supabase environment variables not set. Running in local state.",
+      });
+      return;
+    }
+
+    try {
+      const [scansRes, recsRes] = await Promise.all([
+        fetchScanHistory(50),
+        fetchRecommendationsList(20),
+      ]);
+
+      let errorFound = false;
+
+      if (scansRes.success && scansRes.data && scansRes.data.length > 0) {
+        setRecentScans(scansRes.data);
+      } else if (!scansRes.success) {
+        errorFound = true;
+      }
+
+      if (recsRes.success && recsRes.data && recsRes.data.length > 0) {
+        setRecommendations(recsRes.data);
+      } else if (!recsRes.success) {
+        errorFound = true;
+      }
+
+      if (errorFound) {
+        showToast({
+          type: "warning",
+          title: "Cloud Sync Warning",
+          message: "Database connection failed. Results saved locally.",
+        });
+      } else {
+        setIsCloudConnected(true);
+        showToast({
+          type: "success",
+          title: "Database Synced",
+          message: "Loaded latest telemetry and recommendations from Supabase.",
+        });
+      }
+    } catch {
+      showToast({
+        type: "warning",
+        title: "Cloud Connection Warning",
+        message: "Database connection failed. Results saved locally.",
+      });
+    }
+  }, [showToast]);
+
   const value = useMemo(
     () => ({
       cyberHealthScore,
@@ -375,10 +576,12 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
       latestReport,
       threatAlerts: THREAT_ALERTS,
       toasts,
+      isCloudConnected,
       addScanRecord,
       clearHistory,
       resolveRecommendation,
       resetToDefaults,
+      refreshFromDatabase,
       showToast,
       removeToast,
     }),
@@ -391,10 +594,12 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
       recommendations,
       latestReport,
       toasts,
+      isCloudConnected,
       addScanRecord,
       clearHistory,
       resolveRecommendation,
       resetToDefaults,
+      refreshFromDatabase,
       showToast,
       removeToast,
     ]

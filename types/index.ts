@@ -222,6 +222,8 @@ export interface SecurityContextType {
   resetToDefaults: () => void;
   showToast: (toast: Omit<ToastMessage, "id">) => void;
   removeToast: (id: string) => void;
+  isCloudConnected: boolean;
+  refreshFromDatabase: () => Promise<void>;
 }
 
 // Component Props Interfaces
@@ -302,3 +304,4 @@ export interface NavbarProps {
 }
 
 export * from "./api";
+export * from "./supabase";

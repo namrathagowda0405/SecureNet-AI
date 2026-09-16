@@ -42,6 +42,8 @@ export default function DashboardPage() {
     resolveRecommendation,
     latestReport,
     threatAlerts,
+    isCloudConnected,
+    refreshFromDatabase,
   } = useSecurity();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -52,6 +54,7 @@ export default function DashboardPage() {
     setIsRefreshing(true);
     setReportError(null);
     try {
+      await refreshFromDatabase();
       const res = await fetch("/api/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,9 +112,17 @@ export default function DashboardPage() {
             <span className="font-mono text-xs font-semibold tracking-wider text-blue-400 uppercase">
               Autonomous Operations Center
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isCloudConnected
+                  ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
+                  : "bg-blue-500"
+              }`}
+            />
             <span className="font-mono text-[11px] text-slate-400">
-              Live State Synchronized
+              {isCloudConnected
+                ? "Supabase Cloud: Synced"
+                : "Local State Active"}
             </span>
           </div>
           <h1 className="font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-4xl">
@@ -207,35 +218,35 @@ export default function DashboardPage() {
           <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition-all duration-500 group-hover:bg-blue-500/20" />
         </div>
 
-        {/* Clean Scans Rate */}
+        {/* Safe Scans Card */}
         <div className="glass-panel group relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 transition-all duration-300 hover:border-emerald-500/30">
           <div className="mb-2 flex items-center justify-between font-mono text-xs text-slate-400">
-            <span>Clean Pass Rate</span>
+            <span>Safe Scans</span>
             <span className="font-semibold text-emerald-400">
               {cleanScans} Verified
             </span>
           </div>
           <div className="font-mono text-3xl font-bold tracking-tight text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.3)]">
-            {totalScans > 0 ? Math.round((cleanScans / totalScans) * 100) : 100}
-            %
+            {cleanScans}
           </div>
           <p className="font-body mt-2 text-xs text-slate-400">
-            Samples classified safe or low risk
+            {totalScans > 0 ? Math.round((cleanScans / totalScans) * 100) : 100}
+            % of telemetry verified clean
           </p>
           <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition-all duration-500 group-hover:bg-emerald-500/20" />
         </div>
 
-        {/* High Risk Detections */}
+        {/* Malicious Scans Card */}
         <div className="glass-panel group relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 transition-all duration-300 hover:border-red-500/30">
           <div className="mb-2 flex items-center justify-between font-mono text-xs text-slate-400">
-            <span>Threats Intercepted</span>
-            <span className="font-semibold text-red-400">Containment</span>
+            <span>Malicious Scans</span>
+            <span className="font-semibold text-red-400">Neutralized</span>
           </div>
           <div className="font-mono text-3xl font-bold tracking-tight text-red-400 drop-shadow-[0_0_12px_rgba(239,68,68,0.3)]">
             {threatsBlocked}
           </div>
           <p className="font-body mt-2 text-xs text-slate-400">
-            High and critical severity threats identified
+            High & critical threats isolated
           </p>
           <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-red-500/10 blur-2xl transition-all duration-500 group-hover:bg-red-500/20" />
         </div>

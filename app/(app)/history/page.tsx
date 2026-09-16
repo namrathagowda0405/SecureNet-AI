@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Loader2,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
@@ -30,11 +31,14 @@ export default function HistoryPage() {
     threatLevel,
     confidenceScore,
     recommendations,
+    isCloudConnected,
+    refreshFromDatabase,
   } = useSecurity();
   const [filterType, setFilterType] = useState<string>("all");
   const [filterThreat, setFilterThreat] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   const filteredScans = useMemo(() => {
@@ -128,9 +132,17 @@ export default function HistoryPage() {
             <span className="font-mono text-xs font-semibold tracking-wider text-blue-400 uppercase">
               Forensics & Compliance
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isCloudConnected
+                  ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
+                  : "bg-blue-500"
+              }`}
+            />
             <span className="font-mono text-[11px] text-slate-400">
-              Session Storage Active
+              {isCloudConnected
+                ? "Supabase Cloud: Synced"
+                : "Local Telemetry Active"}
             </span>
           </div>
           <h1 className="font-heading flex items-center gap-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
@@ -146,6 +158,25 @@ export default function HistoryPage() {
         </div>
 
         <div className="flex items-center gap-3 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={async () => {
+              setIsSyncing(true);
+              try {
+                await refreshFromDatabase();
+              } finally {
+                setIsSyncing(false);
+              }
+            }}
+            disabled={isSyncing}
+            className="glass-panel inline-flex items-center gap-2 rounded-xl px-3.5 py-2 font-mono text-xs text-slate-300 transition-all hover:border-blue-500/30 hover:text-white active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin text-blue-400" : ""}`}
+            />
+            <span>Sync DB</span>
+          </button>
+
           {recentScans.length > 0 && (
             <button
               type="button"
