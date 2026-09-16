@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, Search, Bell, Shield, Zap, User } from "lucide-react";
+import { Menu, Search, Bell, Shield, Zap, User, FileText } from "lucide-react";
 import type { NavbarProps } from "@/types";
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -46,16 +46,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search CVEs, domains, hashes, IP addresses..."
-            className="font-body h-9 w-full rounded-xl border border-white/10 bg-slate-900/60 pr-14 pl-9 text-xs text-slate-200 placeholder-slate-400 transition-all focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none"
+            className="font-body h-9 w-full rounded-xl border border-white/10 bg-slate-900/60 pr-16 pl-9 text-xs text-slate-200 placeholder-slate-400 transition-all focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none"
           />
           <kbd className="pointer-events-none absolute right-2.5 rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
-            ?K
+            Ctrl K
           </kbd>
         </div>
       </div>
 
       {/* Right Section: Quick Action + Notifications + User Avatar */}
-      <div className="flex items-center gap-2.5 sm:gap-4">
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Security Audit Report CTA */}
+        <Link
+          href="/reports"
+          className="hidden items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 font-mono text-xs font-semibold text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all hover:border-purple-500/50 hover:bg-purple-500/20 hover:text-white md:inline-flex"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          <span>Audit Report</span>
+        </Link>
+
         {/* Quick Instant Scan CTA */}
         <Link
           href="/url-checker"

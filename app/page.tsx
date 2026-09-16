@@ -54,24 +54,33 @@ export default function LandingPage() {
           </Link>
 
           {/* Center Links (Desktop) */}
-          <nav className="font-body hidden items-center gap-8 text-sm text-slate-300 md:flex">
+          <nav className="font-body hidden items-center gap-6 text-sm text-slate-300 md:flex">
             <a
               href="#features"
               className="transition-colors hover:text-blue-400"
             >
               Features
             </a>
-            <a
-              href="#how-it-works"
-              className="transition-colors hover:text-blue-400"
-            >
-              How It Works
-            </a>
             <Link
               href="/dashboard"
               className="transition-colors hover:text-blue-400"
             >
-              Live Dashboard
+              Dashboard
+            </Link>
+            <Link
+              href="/reports"
+              className="font-semibold transition-colors hover:text-purple-300"
+            >
+              Audit Report
+            </Link>
+            <Link
+              href="/about"
+              className="transition-colors hover:text-blue-400"
+            >
+              About
+            </Link>
+            <Link href="/faq" className="transition-colors hover:text-blue-400">
+              FAQ
             </Link>
             <a
               href="https://github.com/namrathagowda0405/SecureNet-AI"
@@ -371,24 +380,24 @@ export default function LandingPage() {
 
             <div>
               <h4 className="font-heading mb-3 font-mono text-xs font-semibold tracking-wider text-slate-200 uppercase">
-                Resources
+                Platform & Audits
               </h4>
               <ul className="space-y-2 text-xs">
                 <li>
-                  <a
-                    href="#about"
+                  <Link
+                    href="/dashboard"
                     className="transition-colors hover:text-blue-400"
                   >
-                    About SecureNet AI
-                  </a>
+                    Operations Dashboard
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#features"
-                    className="transition-colors hover:text-blue-400"
+                  <Link
+                    href="/reports"
+                    className="font-medium transition-colors hover:text-purple-300"
                   >
-                    Features Overview
-                  </a>
+                    Cyber Security Audit Report
+                  </Link>
                 </li>
                 <li>
                   <Link
@@ -403,7 +412,7 @@ export default function LandingPage() {
                     href="/history"
                     className="transition-colors hover:text-blue-400"
                   >
-                    Scan History
+                    Forensic Scan History
                   </Link>
                 </li>
               </ul>
@@ -411,17 +420,49 @@ export default function LandingPage() {
 
             <div>
               <h4 className="font-heading mb-3 font-mono text-xs font-semibold tracking-wider text-slate-200 uppercase">
-                Legal & Social
+                Company & Docs
               </h4>
               <ul className="space-y-2 text-xs">
                 <li>
-                  <a
-                    href="#privacy"
+                  <Link
+                    href="/about"
                     className="transition-colors hover:text-blue-400"
                   >
-                    Privacy Policy
-                  </a>
+                    About SecureNet AI
+                  </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/team"
+                    className="transition-colors hover:text-blue-400"
+                  >
+                    Team & SecOps
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/faq"
+                    className="transition-colors hover:text-blue-400"
+                  >
+                    FAQ Knowledgebase
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="transition-colors hover:text-blue-400"
+                  >
+                    Contact & Telemetry Feedback
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-heading mb-3 font-mono text-xs font-semibold tracking-wider text-slate-200 uppercase">
+                Community & Code
+              </h4>
+              <ul className="space-y-2 text-xs">
                 <li>
                   <a
                     href="https://github.com/namrathagowda0405/SecureNet-AI"
@@ -434,12 +475,20 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="mailto:security@securenet.ai"
+                  <Link
+                    href="/contact"
                     className="transition-colors hover:text-blue-400"
                   >
-                    Contact Security Team
-                  </a>
+                    Responsible Disclosure
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/faq"
+                    className="transition-colors hover:text-blue-400"
+                  >
+                    Privacy Architecture
+                  </Link>
                 </li>
               </ul>
             </div>

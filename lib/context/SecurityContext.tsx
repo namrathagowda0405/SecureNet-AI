@@ -25,7 +25,7 @@ import {
 import { RECOMMENDATIONS, THREAT_ALERTS } from "@/lib/data";
 import { generateSecurityReport } from "@/lib/reports/reportGenerator";
 
-const STORAGE_KEY = "securenet_ai_security_state_v3";
+const STORAGE_KEY = "securenet_ai_security_state_v4";
 
 const DEFAULT_SCANS: ScanRecord[] = [
   {
@@ -35,7 +35,7 @@ const DEFAULT_SCANS: ScanRecord[] = [
     result: "Deceptive Login Domain Blocked",
     threatLevel: "critical",
     confidence: 96,
-    timestamp: "12m ago",
+    timestamp: "8m ago",
     details:
       "Detected targeted homograph domain with newly minted Let's Encrypt cert.",
     reasons: [
@@ -51,7 +51,7 @@ const DEFAULT_SCANS: ScanRecord[] = [
     result: "High Entropy Passphrase Verified",
     threatLevel: "safe",
     confidence: 99,
-    timestamp: "45m ago",
+    timestamp: "22m ago",
     details: "Entropy: 94.2 bits. 0 matches in breach dictionaries.",
     metadata: { score: 95 },
   },
@@ -63,7 +63,7 @@ const DEFAULT_SCANS: ScanRecord[] = [
     result: "Executive Impersonation Attempt Caught",
     threatLevel: "high",
     confidence: 94,
-    timestamp: "2h ago",
+    timestamp: "1h ago",
     details:
       "Failed SPF/DMARC alignment; urgent psychological coercion tactics.",
     metadata: { phishingProbability: 82 },
@@ -73,9 +73,9 @@ const DEFAULT_SCANS: ScanRecord[] = [
     type: "malware",
     input: "Invoice_Q3_Financial_Audit.pdf.exe",
     result: "Suspicious Double-Extension Dropper",
-    threatLevel: "high",
+    threatLevel: "critical",
     confidence: 98,
-    timestamp: "4h ago",
+    timestamp: "2h ago",
     details:
       "Executable masquerading as PDF; embedded PowerShell dropper signature.",
     reasons: [
@@ -83,6 +83,50 @@ const DEFAULT_SCANS: ScanRecord[] = [
       "Unverified executable binary header",
       "Heuristic match for trojan downloader",
     ],
+  },
+  {
+    id: "scan-init-5",
+    type: "url",
+    input: "https://cloud.internal-aws.amazon.com/console",
+    result: "Verified Enterprise SSL Domain",
+    threatLevel: "safe",
+    confidence: 99,
+    timestamp: "3h ago",
+    details: "Amazon Trust Services CA verified. High reputation domain.",
+    reasons: ["Valid HTTPS certificate", "Trusted infrastructure domain"],
+  },
+  {
+    id: "scan-init-6",
+    type: "password",
+    input: "Winter2025!Login",
+    result: "Moderate Entropy Credential",
+    threatLevel: "medium",
+    confidence: 92,
+    timestamp: "4h ago",
+    details: "Entropy: 58.4 bits. Predictable seasonal pattern.",
+    metadata: { score: 58 },
+  },
+  {
+    id: "scan-init-7",
+    type: "email",
+    input: "Scheduled Infrastructure Maintenance Window Notice",
+    result: "Routine Telemetry Notice (Clean)",
+    threatLevel: "safe",
+    confidence: 97,
+    timestamp: "5h ago",
+    details: "SPF, DKIM, and DMARC aligned. No deceptive keywords.",
+    metadata: { phishingProbability: 4 },
+  },
+  {
+    id: "scan-init-8",
+    type: "malware",
+    input: "Annual_Compliance_Audit_2026.pdf",
+    result: "Verified Benign Document",
+    threatLevel: "safe",
+    confidence: 99,
+    timestamp: "6h ago",
+    details: "Standard PDF structure. 0 macro blocks or embedded scripts.",
+    reasons: ["Clean PDF structure", "Clean SHA-256 hash"],
   },
 ];
 

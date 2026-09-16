@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, X, Radio } from "lucide-react";
-import { NAVIGATION_ITEMS } from "@/lib/navigation";
+import { NAVIGATION_ITEMS, SECONDARY_NAV_ITEMS } from "@/lib/navigation";
 import type { SidebarProps } from "@/types";
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -61,12 +61,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.href}
               href={item.href}
               onClick={() => {
-                // Close drawer on mobile click
                 if (window.innerWidth < 1024) {
                   onClose();
                 }
               }}
-              className={`font-body group relative flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 ${
+              className={`font-body group relative flex items-center justify-between rounded-xl px-3.5 py-2 text-sm transition-all duration-200 ${
                 isActive
                   ? "border border-blue-500/30 bg-blue-600/15 font-medium text-white shadow-[0_0_15px_rgba(37,99,235,0.15)]"
                   : "border border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
@@ -97,11 +96,72 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               )}
 
-              {/* Active neon strip indicator */}
               {isActive && (
                 <motion.div
                   layoutId="activeIndicator"
                   className="absolute top-2 bottom-2 left-0 w-1 rounded-r-full bg-blue-500 shadow-[0_0_8px_#3b82f6]"
+                />
+              )}
+            </Link>
+          );
+        })}
+
+        {/* Secondary Navigation Section */}
+        <div className="pt-4 pb-2">
+          <div className="mb-3 h-px bg-white/[0.06]" />
+          <div className="px-3 pb-2 font-mono text-[10px] tracking-wider text-slate-400 uppercase">
+            Platform & Intelligence
+          </div>
+        </div>
+
+        {SECONDARY_NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => {
+                if (window.innerWidth < 1024) {
+                  onClose();
+                }
+              }}
+              className={`font-body group relative flex items-center justify-between rounded-xl px-3.5 py-2 text-sm transition-all duration-200 ${
+                isActive
+                  ? "border border-purple-500/30 bg-purple-600/15 font-medium text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                  : "border border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`rounded-lg p-1.5 transition-colors ${
+                    isActive
+                      ? "bg-purple-500/20 text-purple-400"
+                      : "text-slate-400 group-hover:bg-white/[0.06] group-hover:text-slate-200"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+                <span>{item.title}</span>
+              </div>
+
+              {item.badge && (
+                <span
+                  className={`rounded-md px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase ${
+                    isActive
+                      ? "bg-purple-500/30 text-purple-300"
+                      : "bg-white/[0.06] text-slate-400 group-hover:text-slate-300"
+                  }`}
+                >
+                  {item.badge}
+                </span>
+              )}
+
+              {isActive && (
+                <motion.div
+                  layoutId="activeIndicatorSecondary"
+                  className="absolute top-2 bottom-2 left-0 w-1 rounded-r-full bg-purple-500 shadow-[0_0_8px_#a855f7]"
                 />
               )}
             </Link>

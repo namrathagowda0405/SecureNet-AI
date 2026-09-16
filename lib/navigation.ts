@@ -7,6 +7,11 @@ import {
   Bot,
   History,
   Settings,
+  FileText,
+  Shield,
+  Users,
+  HelpCircle,
+  MessageSquare,
 } from "lucide-react";
 import type { NavigationItem } from "@/types";
 
@@ -62,5 +67,39 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     href: "/settings",
     icon: Settings,
     description: "Preferences & security policies",
+  },
+];
+
+export const SECONDARY_NAV_ITEMS: NavigationItem[] = [
+  {
+    title: "Security Report",
+    href: "/reports",
+    icon: FileText,
+    badge: "PDF Audit",
+    description: "Downloadable SecOps audit brief",
+  },
+  {
+    title: "About Project",
+    href: "/about",
+    icon: Shield,
+    description: "Mission, architecture & edge engine",
+  },
+  {
+    title: "Team & SecOps",
+    href: "/team",
+    icon: Users,
+    description: "Architects & developers",
+  },
+  {
+    title: "FAQ & Privacy",
+    href: "/faq",
+    icon: HelpCircle,
+    description: "Frequently asked security questions",
+  },
+  {
+    title: "Contact / Feedback",
+    href: "/contact",
+    icon: MessageSquare,
+    description: "Telemetry feedback & disclosures",
   },
 ];
