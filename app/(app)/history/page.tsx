@@ -14,15 +14,28 @@ import {
   Shield,
   Clock,
   ArrowRight,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
+import type { ApiResponse, FullAuditReport } from "@/types";
 
 export default function HistoryPage() {
-  const { recentScans, clearHistory } = useSecurity();
+  const {
+    recentScans,
+    clearHistory,
+    cyberHealthScore,
+    healthBreakdown,
+    threatLevel,
+    confidenceScore,
+    recommendations,
+  } = useSecurity();
   const [filterType, setFilterType] = useState<string>("all");
   const [filterThreat, setFilterThreat] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const filteredScans = useMemo(() => {
     return recentScans.filter((scan) => {
@@ -66,19 +79,44 @@ export default function HistoryPage() {
     }
   };
 
-  const handleExportJson = () => {
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(recentScans, null, 2));
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute(
-      "download",
-      `securenet_ai_audit_log_${Date.now()}.json`
-    );
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  const handleExportJson = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "aggregate",
+          recentScans,
+          cyberHealthScore,
+          healthBreakdown,
+          threatLevel,
+          confidenceScore,
+          recommendations,
+        }),
+      });
+
+      const json: ApiResponse<FullAuditReport> = await res.json();
+      const exportData = json.success && json.data ? json.data : recentScans;
+
+      const dataStr =
+        "data:text/json;charset=utf-8," +
+        encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute(
+        "download",
+        `securenet_ai_audit_log_${Date.now()}.json`
+      );
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch {
+      setExportError("Network error fetching report from /api/report.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -122,14 +160,25 @@ export default function HistoryPage() {
           <button
             type="button"
             onClick={handleExportJson}
-            disabled={recentScans.length === 0}
+            disabled={recentScans.length === 0 || isExporting}
             className="glass-panel inline-flex items-center gap-2 rounded-xl px-4 py-2 font-mono text-xs font-medium text-slate-300 transition-all hover:border-blue-500/30 hover:text-white active:scale-95 disabled:opacity-50"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span>Export JSON</span>
+            {isExporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            <span>{isExporting ? "Compiling..." : "Export JSON"}</span>
           </button>
         </div>
       </div>
+
+      {exportError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+          <span>{exportError}</span>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="space-y-3">

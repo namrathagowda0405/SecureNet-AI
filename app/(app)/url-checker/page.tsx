@@ -11,11 +11,12 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge, ScanningModal } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
 import { analyzeUrl } from "@/lib/scanners/urlScanner";
-import type { UrlAnalysisResult } from "@/types";
+import type { ApiResponse, UrlScanResponse } from "@/types";
 
 export default function UrlCheckerPage() {
   const { addScanRecord, recentScans, cyberHealthScore } = useSecurity();
@@ -24,42 +25,65 @@ export default function UrlCheckerPage() {
   );
   const [isScanning, setIsScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
-  const [result, setResult] = useState<UrlAnalysisResult | null>(() =>
+  const [result, setResult] = useState<UrlScanResponse | null>(() =>
     analyzeUrl("https://paypa1-security-auth-check.top/login")
   );
+  const [error, setError] = useState<string | null>(null);
 
-  const handleScan = () => {
-    if (!url.trim()) return;
+  const executeScan = async (targetUrl: string, recordToGlobal = true) => {
+    if (!targetUrl.trim()) return;
 
     setIsScanning(true);
+    setError(null);
     setScanStep(0);
 
-    setTimeout(() => setScanStep(1), 300);
-    setTimeout(() => setScanStep(2), 650);
+    const step1 = setTimeout(() => setScanStep(1), 300);
+    const step2 = setTimeout(() => setScanStep(2), 650);
 
-    setTimeout(() => {
-      const scanResult = analyzeUrl(url);
-      setResult(scanResult);
-      setIsScanning(false);
-
-      // Record to global state
-      addScanRecord({
-        type: "url",
-        input: url,
-        result:
-          scanResult.verdict === "Safe"
-            ? `Verified Safe Domain (${scanResult.domain})`
-            : `${scanResult.verdict} Phishing Pattern (${scanResult.domain})`,
-        threatLevel: scanResult.threatLevel,
-        confidence: scanResult.confidenceScore,
-        details: `Risk Score: ${scanResult.riskScore}/100. Reasons: ${scanResult.reasons.length} flagged.`,
-        reasons: scanResult.reasons,
-        metadata: {
-          riskScore: scanResult.riskScore,
-          verdict: scanResult.verdict,
-        },
+    try {
+      const res = await fetch("/api/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
       });
-    }, 1000);
+      const json: ApiResponse<UrlScanResponse> = await res.json();
+
+      if (json.success && json.data) {
+        const scanResult = json.data;
+        setResult(scanResult);
+
+        if (recordToGlobal) {
+          addScanRecord({
+            type: "url",
+            input: targetUrl,
+            result:
+              scanResult.verdict === "Safe"
+                ? `Verified Safe Domain (${scanResult.domain})`
+                : `${scanResult.verdict} Phishing Pattern (${scanResult.domain})`,
+            threatLevel: scanResult.threatLevel,
+            confidence: scanResult.confidenceScore,
+            details: `Risk Score: ${scanResult.riskScore}/100. Reasons: ${scanResult.reasons.length} flagged.`,
+            reasons: scanResult.reasons,
+            metadata: {
+              riskScore: scanResult.riskScore,
+              verdict: scanResult.verdict,
+            },
+          });
+        }
+      } else {
+        setError(json.error || "URL analysis failed.");
+      }
+    } catch {
+      setError("Network error connecting to /api/url service.");
+    } finally {
+      clearTimeout(step1);
+      clearTimeout(step2);
+      setIsScanning(false);
+    }
+  };
+
+  const handleScan = () => {
+    executeScan(url, true);
   };
 
   const sampleUrls = [
@@ -128,6 +152,13 @@ export default function UrlCheckerPage() {
             subtitle="Input a web link or select from live test patterns below"
           >
             <div className="space-y-4">
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();

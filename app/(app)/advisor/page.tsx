@@ -1,16 +1,28 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Bot, Send, Sparkles, User, Lightbulb } from "lucide-react";
+import {
+  Bot,
+  Send,
+  Sparkles,
+  User,
+  Lightbulb,
+  AlertCircle,
+} from "lucide-react";
 import { DashboardCard, ThreatBadge } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
-import { generateAdvisorResponse } from "@/lib/advisor/advisorEngine";
-import type { AdvisorMessage } from "@/types";
+import type {
+  AdvisorApiRequest,
+  AdvisorApiResponse,
+  AdvisorMessage,
+  ApiResponse,
+} from "@/types";
 
 export default function AdvisorPage() {
   const { recentScans, cyberHealthScore, healthBreakdown } = useSecurity();
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const idCounterRef = useRef(1);
 
@@ -50,9 +62,9 @@ export default function AdvisorPage() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSendMessage = (textToSend?: string) => {
-    const query = textToSend || inputMessage;
-    if (!query.trim() || isTyping) return;
+  const handleSendMessage = async (textToSend?: string) => {
+    const query = (textToSend || inputMessage).trim();
+    if (!query || isTyping) return;
 
     const userMsg: AdvisorMessage = {
       id: `msg-user-${idCounterRef.current++}`,
@@ -64,27 +76,58 @@ export default function AdvisorPage() {
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage("");
     setIsTyping(true);
+    setError(null);
 
-    // Simulate AI synthesis with typing delay
-    setTimeout(() => {
-      const response = generateAdvisorResponse(
+    try {
+      const payload: AdvisorApiRequest = {
         query,
         recentScans,
         cyberHealthScore,
-        healthBreakdown.category
-      );
-
-      const botMsg: AdvisorMessage = {
-        id: `msg-bot-${idCounterRef.current++}`,
-        sender: "assistant",
-        text: response.text,
-        timestamp: "Just now",
-        contextPill: response.contextPill,
+        healthCategory: healthBreakdown.category,
       };
 
-      setMessages((prev) => [...prev, botMsg]);
+      const res = await fetch("/api/advisor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json: ApiResponse<AdvisorApiResponse> = await res.json();
+
+      if (json.success && json.data) {
+        const response = json.data;
+        const botMsg: AdvisorMessage = {
+          id: `msg-bot-${idCounterRef.current++}`,
+          sender: "assistant",
+          text: response.text,
+          timestamp: "Just now",
+          contextPill: response.contextPill,
+        };
+        setMessages((prev) => [...prev, botMsg]);
+      } else {
+        setError(json.error || "Advisor query failed.");
+        const fallbackMsg: AdvisorMessage = {
+          id: `msg-bot-${idCounterRef.current++}`,
+          sender: "assistant",
+          text: "I encountered an issue retrieving that analysis. Please verify your connection or rephrase the query.",
+          timestamp: "Just now",
+          contextPill: "Telemetry Alert",
+        };
+        setMessages((prev) => [...prev, fallbackMsg]);
+      }
+    } catch {
+      setError("Network error communicating with /api/advisor.");
+      const networkErrorMsg: AdvisorMessage = {
+        id: `msg-bot-${idCounterRef.current++}`,
+        sender: "assistant",
+        text: "Network failure: Unable to reach the AI Advisor API endpoint.",
+        timestamp: "Just now",
+        contextPill: "Connection Error",
+      };
+      setMessages((prev) => [...prev, networkErrorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 700);
+    }
   };
 
   return (
@@ -223,6 +266,13 @@ export default function AdvisorPage() {
                 ))}
               </div>
             </div>
+
+            {error && (
+              <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-2.5 text-xs text-red-300">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                <span>{error}</span>
+              </div>
+            )}
 
             {/* Input Bar */}
             <form

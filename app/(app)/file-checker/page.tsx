@@ -15,11 +15,11 @@ import {
   Archive,
   Image as ImageIcon,
   Cpu,
+  AlertCircle,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge, ScanningModal } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
-import { analyzeFile } from "@/lib/scanners/fileScanner";
-import type { MalwareAnalysisResult } from "@/types";
+import type { ApiResponse, MalwareScanResponse } from "@/types";
 
 const SAMPLE_TEST_FILES = [
   {
@@ -65,9 +65,10 @@ export default function FileCheckerPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
   const [copiedHash, setCopiedHash] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Initial demo result
-  const [result, setResult] = useState<MalwareAnalysisResult | null>(null);
+  const [result, setResult] = useState<MalwareScanResponse | null>(null);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -101,13 +102,14 @@ export default function FileCheckerPage() {
     name: string,
     size: number,
     type?: string,
-    buffer?: ArrayBuffer
+    fileObj?: File | Blob
   ) => {
     setSelectedFileName(name);
     setIsUploading(true);
     setUploadProgress(0);
+    setError(null);
 
-    // Simulate file upload progress
+    // Simulated file upload progress
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
         if (prev >= 100) {
@@ -118,7 +120,7 @@ export default function FileCheckerPage() {
       });
     }, 80);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       clearInterval(progressInterval);
       setUploadProgress(100);
       setIsUploading(false);
@@ -126,36 +128,56 @@ export default function FileCheckerPage() {
       setScanStep(0);
 
       // Multi-step scanning progression
-      setTimeout(() => setScanStep(1), 350);
-      setTimeout(() => setScanStep(2), 700);
+      const s1 = setTimeout(() => setScanStep(1), 350);
+      const s2 = setTimeout(() => setScanStep(2), 700);
 
-      setTimeout(async () => {
-        const scanOutcome = await analyzeFile({
-          name,
-          size,
-          type,
-          buffer,
-        });
+      try {
+        let res: Response;
+        if (fileObj) {
+          const formData = new FormData();
+          formData.append("file", fileObj, name);
+          res = await fetch("/api/malware", {
+            method: "POST",
+            body: formData,
+          });
+        } else {
+          res = await fetch("/api/malware", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, size, type }),
+          });
+        }
 
-        setResult(scanOutcome);
+        const json: ApiResponse<MalwareScanResponse> = await res.json();
+        if (json.success && json.data) {
+          const scanOutcome = json.data;
+          setResult(scanOutcome);
+
+          // Commit to global security state
+          addScanRecord({
+            type: "malware",
+            input: scanOutcome.fileName,
+            result: scanOutcome.verdict,
+            threatLevel: scanOutcome.threatLevel,
+            confidence: scanOutcome.confidenceScore,
+            details: `Risk Score: ${scanOutcome.riskScore}/100. SHA-256: ${scanOutcome.fileHash.substring(0, 16)}...`,
+            reasons: scanOutcome.indicators,
+            metadata: {
+              fileSize: scanOutcome.fileSize,
+              fileHash: scanOutcome.fileHash,
+              riskScore: scanOutcome.riskScore,
+            },
+          });
+        } else {
+          setError(json.error || "Malware analysis failed.");
+        }
+      } catch {
+        setError("Network error communicating with /api/malware service.");
+      } finally {
+        clearTimeout(s1);
+        clearTimeout(s2);
         setIsScanning(false);
-
-        // Commit to global security state
-        addScanRecord({
-          type: "malware",
-          input: scanOutcome.fileName,
-          result: scanOutcome.verdict,
-          threatLevel: scanOutcome.threatLevel,
-          confidence: scanOutcome.confidenceScore,
-          details: `Risk Score: ${scanOutcome.riskScore}/100. SHA-256: ${scanOutcome.fileHash.substring(0, 16)}...`,
-          reasons: scanOutcome.indicators,
-          metadata: {
-            fileSize: scanOutcome.fileSize,
-            fileHash: scanOutcome.fileHash,
-            riskScore: scanOutcome.riskScore,
-          },
-        });
-      }, 1100);
+      }
     }, 450);
   };
 
@@ -165,24 +187,14 @@ export default function FileCheckerPage() {
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      const reader = new FileReader();
-      reader.onload = () => {
-        const buffer = reader.result as ArrayBuffer;
-        executeAnalysis(file.name, file.size, file.type, buffer);
-      };
-      reader.readAsArrayBuffer(file);
+      executeAnalysis(file.name, file.size, file.type, file);
     }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = () => {
-        const buffer = reader.result as ArrayBuffer;
-        executeAnalysis(file.name, file.size, file.type, buffer);
-      };
-      reader.readAsArrayBuffer(file);
+      executeAnalysis(file.name, file.size, file.type, file);
     }
   };
 
@@ -259,6 +271,13 @@ export default function FileCheckerPage() {
             subtitle="Drag & drop or browse PDF, DOCX, ZIP, EXE, PNG, JPG (up to 64 MB)"
           >
             <div className="space-y-6">
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               {/* Interactive Dropzone */}
               <div
                 onDragOver={(e) => {

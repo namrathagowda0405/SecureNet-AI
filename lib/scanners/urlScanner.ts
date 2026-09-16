@@ -43,6 +43,17 @@ const SUSPICIOUS_TLDS = [
   ".support",
 ];
 
+const TYPOSQUAT_PATTERNS = [
+  { pattern: /paypa[1i]/i, brand: "PayPal" },
+  { pattern: /g[0o]{2}gle/i, brand: "Google" },
+  { pattern: /micr[0o]s[0o]ft/i, brand: "Microsoft" },
+  { pattern: /app[1i]e/i, brand: "Apple" },
+  { pattern: /faceb[0o]{2}k/i, brand: "Facebook" },
+  { pattern: /amaz[0o]n/i, brand: "Amazon" },
+  { pattern: /netfl[1i]x/i, brand: "Netflix" },
+  { pattern: /c[0o]inbase/i, brand: "Coinbase" },
+];
+
 export function analyzeUrl(urlInput: string): UrlAnalysisResult {
   const trimmed = urlInput.trim();
   const reasons: string[] = [];
@@ -164,6 +175,17 @@ export function analyzeUrl(urlInput: string): UrlAnalysisResult {
     riskScore += 15;
     reasons.push(
       `Sensitive Term Flag: Found keyword '${matchedKeywords[0]}' in URL structure.`
+    );
+  }
+
+  // 6. Check Typosquatting Patterns
+  const matchedTyposquat = TYPOSQUAT_PATTERNS.find((t) =>
+    t.pattern.test(hostname)
+  );
+  if (matchedTyposquat) {
+    riskScore += 30;
+    reasons.push(
+      `Typosquatting Detected: Brand lookalike pattern targeting ${matchedTyposquat.brand} identified in hostname.`
     );
   }
 

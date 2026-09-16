@@ -17,6 +17,7 @@ import {
   Check,
   FileText,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import {
   DashboardCard,
@@ -28,6 +29,7 @@ import {
   AISecurityReportModal,
 } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
+import type { ApiResponse, FullAuditReport } from "@/types";
 
 export default function DashboardPage() {
   const {
@@ -43,11 +45,35 @@ export default function DashboardPage() {
   } = useSecurity();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 800);
+    setReportError(null);
+    try {
+      const res = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "aggregate",
+          recentScans,
+          cyberHealthScore,
+          healthBreakdown,
+          threatLevel,
+          confidenceScore,
+          recommendations,
+        }),
+      });
+      const json: ApiResponse<FullAuditReport> = await res.json();
+      if (!json.success) {
+        setReportError(json.error || "Failed to refresh telemetry report.");
+      }
+    } catch {
+      setReportError("Network error synchronizing with /api/report.");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Live calculated metrics
@@ -118,6 +144,13 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {reportError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+          <span>{reportError}</span>
+        </div>
+      )}
 
       {/* Latest AI Security Report Notification Banner */}
       {latestReport && (

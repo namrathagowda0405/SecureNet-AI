@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   KeyRound,
   Eye,
@@ -11,10 +11,13 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
 import { analyzePassword } from "@/lib/scanners/passwordScanner";
+import type { ApiResponse, PasswordScanResponse } from "@/types";
 
 export default function PasswordCheckerPage() {
   const { addScanRecord, cyberHealthScore } = useSecurity();
@@ -22,14 +25,59 @@ export default function PasswordCheckerPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
 
-  // Live real-time analysis
-  const result = useMemo(() => {
-    return analyzePassword(password);
+  // Backend API states
+  const [result, setResult] = useState<PasswordScanResponse>(() =>
+    analyzePassword("Cyb3r-G@te#2026!Str0ng")
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Live real-time analysis via backend API
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const fetchAnalysis = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+          signal: controller.signal,
+        });
+        const json: ApiResponse<PasswordScanResponse> = await res.json();
+        if (isMounted) {
+          if (json.success && json.data) {
+            setResult(json.data);
+          } else {
+            setError(json.error || "Password evaluation failed.");
+          }
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        if (isMounted) {
+          setError("Unable to connect to password verification service.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(fetchAnalysis, 150);
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [password]);
 
   // Sync to global state
   const handleCommitScan = () => {
-    if (!password.trim()) return;
+    if (!password.trim() || !result) return;
 
     addScanRecord({
       type: "password",
@@ -134,6 +182,13 @@ export default function PasswordCheckerPage() {
             subtitle="Type or paste to calculate entropy, brute-force resistance, and complexity checks"
           >
             <div className="space-y-5">
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -144,6 +199,13 @@ export default function PasswordCheckerPage() {
                 />
 
                 <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                  {isLoading && (
+                    <div className="flex items-center gap-1 px-2 font-mono text-[11px] text-blue-400">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span className="hidden sm:inline">Analyzing...</span>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -160,7 +222,8 @@ export default function PasswordCheckerPage() {
                   <button
                     type="button"
                     onClick={handleCommitScan}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-mono text-xs font-semibold transition-all active:scale-95 ${
+                    disabled={!result || isLoading}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-mono text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 ${
                       hasSaved
                         ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
                         : "bg-blue-600 text-white shadow-md shadow-blue-500/20 hover:bg-blue-500"
@@ -187,20 +250,24 @@ export default function PasswordCheckerPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-slate-400">
                       Strength Score:{" "}
-                      <strong className="text-white">{result.score}/100</strong>
+                      <strong className="text-white">
+                        {result ? `${result.score}/100` : "--/100"}
+                      </strong>
                     </span>
-                    <span
-                      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${getStrengthBadgeClass(
-                        result.strengthLabel
-                      )}`}
-                    >
-                      {result.strengthLabel}
-                    </span>
+                    {result && (
+                      <span
+                        className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${getStrengthBadgeClass(
+                          result.strengthLabel
+                        )}`}
+                      >
+                        {result.strengthLabel}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-slate-400">Threat Verdict:</span>
                     <ThreatBadge
-                      level={result.threatLevel}
+                      level={result?.threatLevel || "safe"}
                       size="sm"
                       pulse={false}
                     />
@@ -210,9 +277,11 @@ export default function PasswordCheckerPage() {
                 <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800 p-[1px]">
                   <div
                     className={`h-full rounded-full bg-gradient-to-r ${getScoreColor(
-                      result.score
+                      result ? result.score : 0
                     )} shadow-[0_0_12px_rgba(37,99,235,0.4)] transition-all duration-300`}
-                    style={{ width: `${Math.max(4, result.score)}%` }}
+                    style={{
+                      width: `${Math.max(4, result ? result.score : 4)}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -220,13 +289,34 @@ export default function PasswordCheckerPage() {
               {/* Checkbox Matrix: 7 Checks */}
               <div className="grid grid-cols-2 gap-2.5 pt-1 sm:grid-cols-4">
                 {[
-                  { label: "12+ Characters", met: result.checks.minLength },
-                  { label: "Uppercase (A-Z)", met: result.checks.hasUppercase },
-                  { label: "Lowercase (a-z)", met: result.checks.hasLowercase },
-                  { label: "Numbers (0-9)", met: result.checks.hasNumber },
-                  { label: "Special Symbols", met: result.checks.hasSpecial },
-                  { label: "No Repetition", met: result.checks.noRepeated },
-                  { label: "Not In Breaches", met: result.checks.notCommon },
+                  {
+                    label: "12+ Characters",
+                    met: result?.checks.minLength ?? false,
+                  },
+                  {
+                    label: "Uppercase (A-Z)",
+                    met: result?.checks.hasUppercase ?? false,
+                  },
+                  {
+                    label: "Lowercase (a-z)",
+                    met: result?.checks.hasLowercase ?? false,
+                  },
+                  {
+                    label: "Numbers (0-9)",
+                    met: result?.checks.hasNumber ?? false,
+                  },
+                  {
+                    label: "Special Symbols",
+                    met: result?.checks.hasSpecial ?? false,
+                  },
+                  {
+                    label: "No Repetition",
+                    met: result?.checks.noRepeated ?? false,
+                  },
+                  {
+                    label: "Not In Breaches",
+                    met: result?.checks.notCommon ?? false,
+                  },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -255,7 +345,7 @@ export default function PasswordCheckerPage() {
                 Crack Time Estimate
               </div>
               <div className="truncate font-mono text-base font-bold text-white sm:text-lg">
-                {result.crackTime}
+                {result ? result.crackTime : "Calculating..."}
               </div>
               <div className="mt-1 text-[11px] text-slate-400">
                 100B guesses/sec benchmark
@@ -267,10 +357,10 @@ export default function PasswordCheckerPage() {
                 Informational Entropy
               </div>
               <div className="font-mono text-base font-bold text-blue-400 sm:text-lg">
-                {result.entropy} Bits
+                {result ? `${result.entropy} Bits` : "-- Bits"}
               </div>
               <div className="mt-1 text-[11px] text-slate-400">
-                {result.entropy >= 65
+                {result && result.entropy >= 65
                   ? "Cryptographically solid"
                   : "Under safe threshold"}
               </div>
@@ -281,7 +371,7 @@ export default function PasswordCheckerPage() {
                 Engine Confidence
               </div>
               <div className="font-mono text-base font-bold text-purple-300 sm:text-lg">
-                {result.confidence}%
+                {result ? `${result.confidence}%` : "--%"}
               </div>
               <div className="mt-1 text-[11px] text-slate-400">
                 Deterministic rule matrix
@@ -295,7 +385,7 @@ export default function PasswordCheckerPage() {
             subtitle="Tailored steps to elevate your credential posture"
           >
             <div className="space-y-2.5">
-              {result.suggestions.map((suggestion, idx) => (
+              {(result?.suggestions || []).map((suggestion, idx) => (
                 <div
                   key={idx}
                   className="font-body flex items-start gap-3 rounded-xl border border-blue-500/20 bg-blue-950/20 p-3 text-xs text-slate-300"

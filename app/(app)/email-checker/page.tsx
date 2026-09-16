@@ -8,11 +8,12 @@ import {
   ShieldAlert,
   AlertTriangle,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge, ScanningModal } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
 import { analyzeEmail } from "@/lib/scanners/emailScanner";
-import type { EmailAnalysisResult } from "@/types";
+import type { ApiResponse, EmailScanResponse } from "@/types";
 
 const SAMPLE_EMAILS = [
   {
@@ -55,44 +56,67 @@ export default function EmailCheckerPage() {
   const [emailText, setEmailText] = useState(SAMPLE_EMAILS[0].content);
   const [isScanning, setIsScanning] = useState(false);
   const [scanStep, setScanStep] = useState(0);
-  const [result, setResult] = useState<EmailAnalysisResult | null>(() =>
+  const [result, setResult] = useState<EmailScanResponse | null>(() =>
     analyzeEmail(SAMPLE_EMAILS[0].content)
   );
+  const [error, setError] = useState<string | null>(null);
 
-  const handleScan = () => {
-    if (!emailText.trim()) return;
+  const executeScan = async (text: string, recordToGlobal = true) => {
+    if (!text.trim()) return;
 
     setIsScanning(true);
+    setError(null);
     setScanStep(0);
 
-    setTimeout(() => setScanStep(1), 300);
-    setTimeout(() => setScanStep(2), 600);
+    const step1 = setTimeout(() => setScanStep(1), 300);
+    const step2 = setTimeout(() => setScanStep(2), 600);
 
-    setTimeout(() => {
-      const scanResult = analyzeEmail(emailText);
-      setResult(scanResult);
-      setIsScanning(false);
-
-      // Record to global state
-      addScanRecord({
-        type: "email",
-        input:
-          emailText.split("\n")[0]?.substring(0, 45) || "Suspicious Message",
-        result:
-          scanResult.phishingProbability >= 70
-            ? "High Probability Phishing Intercepted"
-            : scanResult.phishingProbability >= 35
-              ? "Suspicious Social Engineering Indicators"
-              : "Clean Message - No Phishing Vectors",
-        threatLevel: scanResult.threatLevel,
-        confidence: scanResult.confidenceScore,
-        details: `Phishing Probability: ${scanResult.phishingProbability}%. ${scanResult.suspiciousSentences.length} suspicious sentences flagged.`,
-        reasons: scanResult.suspiciousSentences,
-        metadata: {
-          phishingProbability: scanResult.phishingProbability,
-        },
+    try {
+      const res = await fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailText: text }),
       });
-    }, 950);
+      const json: ApiResponse<EmailScanResponse> = await res.json();
+
+      if (json.success && json.data) {
+        const scanResult = json.data;
+        setResult(scanResult);
+
+        if (recordToGlobal) {
+          addScanRecord({
+            type: "email",
+            input:
+              text.split("\n")[0]?.substring(0, 45) || "Suspicious Message",
+            result:
+              scanResult.phishingProbability >= 70
+                ? "High Probability Phishing Intercepted"
+                : scanResult.phishingProbability >= 35
+                  ? "Suspicious Social Engineering Indicators"
+                  : "Clean Message - No Phishing Vectors",
+            threatLevel: scanResult.threatLevel,
+            confidence: scanResult.confidenceScore,
+            details: `Phishing Probability: ${scanResult.phishingProbability}%. ${scanResult.suspiciousSentences.length} suspicious sentences flagged.`,
+            reasons: scanResult.suspiciousSentences,
+            metadata: {
+              phishingProbability: scanResult.phishingProbability,
+            },
+          });
+        }
+      } else {
+        setError(json.error || "Email analysis failed.");
+      }
+    } catch {
+      setError("Network error connecting to /api/email service.");
+    } finally {
+      clearTimeout(step1);
+      clearTimeout(step2);
+      setIsScanning(false);
+    }
+  };
+
+  const handleScan = () => {
+    executeScan(emailText, true);
   };
 
   return (
@@ -153,6 +177,13 @@ export default function EmailCheckerPage() {
             subtitle="Paste headers and body or select a test sample below"
           >
             <div className="space-y-4">
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/40 p-3 text-xs text-red-300">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               {/* Presets */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[11px] text-slate-400">
