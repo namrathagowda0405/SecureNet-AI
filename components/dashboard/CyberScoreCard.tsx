@@ -9,15 +9,55 @@ import type { CyberScoreCardProps } from "@/types";
 export const CyberScoreCard: React.FC<CyberScoreCardProps> = ({
   score = 88,
   maxScore = 100,
-  status = "SECURE & RESILIENT",
-  description = "Overall security posture is solid. 2 minor remediations recommended.",
+  status,
+  description = "Overall security posture is solid. Automated continuous heuristics active.",
   threatLevel = "safe",
+  breakdown,
   lastUpdated = "Just now",
   className = "",
 }) => {
   const radius = 78;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / maxScore) * circumference;
+
+  // Defaults if breakdown not passed
+  const b = breakdown || {
+    overall: score,
+    category:
+      score >= 90
+        ? "Excellent"
+        : score >= 75
+          ? "Good"
+          : score >= 50
+            ? "Average"
+            : "Critical",
+    passwordSecurity: Math.round((score / 100) * 25),
+    websiteSafety: Math.round((score / 100) * 25),
+    emailSafety: Math.round((score / 100) * 25),
+    previousScansBonus: Math.round((score / 100) * 25),
+  };
+
+  const categoryConfig = {
+    Excellent: {
+      color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+      label: "EXCELLENT POSTURE",
+    },
+    Good: {
+      color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+      label: "GOOD RESILIENCE",
+    },
+    Average: {
+      color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+      label: "AVERAGE EXPOSURE",
+    },
+    Critical: {
+      color: "text-red-400 bg-red-500/10 border-red-500/30",
+      label: "CRITICAL VULNERABILITY",
+    },
+  }[b.category] || {
+    color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+    label: "DEFENSE ACTIVE",
+  };
 
   return (
     <div
@@ -36,17 +76,28 @@ export const CyberScoreCard: React.FC<CyberScoreCardProps> = ({
             </h3>
           </div>
           <p className="font-body mt-0.5 text-xs text-slate-400">
-            Continuous algorithmic defense index
+            Continuous 4-pillar algorithmic defense index
           </p>
         </div>
 
-        <ThreatBadge level={threatLevel} label={status} size="sm" />
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full border px-2.5 py-1 font-mono text-xs font-semibold uppercase ${categoryConfig.color}`}
+          >
+            {b.category}
+          </span>
+          <ThreatBadge
+            level={threatLevel}
+            label={status || categoryConfig.label}
+            size="sm"
+          />
+        </div>
       </div>
 
       {/* Circular Gauge and Metrics */}
       <div className="z-10 flex flex-col items-center justify-center gap-8 py-2 sm:flex-row">
         {/* Animated Radial SVG */}
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex shrink-0 items-center justify-center">
           <svg className="h-48 w-48 -rotate-90 transform" viewBox="0 0 200 200">
             {/* Background Track */}
             <circle
@@ -90,7 +141,7 @@ export const CyberScoreCard: React.FC<CyberScoreCardProps> = ({
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
               animate={{ strokeDashoffset }}
-              transition={{ duration: 1.8, ease: "easeOut" }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
               filter="url(#glow)"
             />
           </svg>
@@ -98,9 +149,10 @@ export const CyberScoreCard: React.FC<CyberScoreCardProps> = ({
           {/* Center Numerical Score */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <motion.span
-              initial={{ scale: 0.5, opacity: 0 }}
+              key={score}
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
+              transition={{ duration: 0.5 }}
               className="font-mono text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_15px_rgba(37,99,235,0.5)] sm:text-5xl"
             >
               {score}
@@ -111,47 +163,77 @@ export const CyberScoreCard: React.FC<CyberScoreCardProps> = ({
           </div>
         </div>
 
-        {/* Sub-Metrics Breakdown */}
+        {/* 4-Pillar Sub-Metrics Breakdown (25 pts each) */}
         <div className="w-full flex-1 space-y-3 sm:w-auto">
+          {/* Pillar 1: Passwords */}
           <div className="space-y-1">
             <div className="flex justify-between font-mono text-xs">
-              <span className="text-slate-400">Identity & Passwords</span>
-              <span className="font-semibold text-emerald-400">94% (Safe)</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full w-[94%] rounded-full bg-emerald-500" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between font-mono text-xs">
-              <span className="text-slate-400">Web & Phishing Shield</span>
-              <span className="font-semibold text-blue-400">89% (Optimal)</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full w-[89%] rounded-full bg-blue-500" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between font-mono text-xs">
-              <span className="text-slate-400">Endpoint & Binaries</span>
-              <span className="font-semibold text-cyan-400">86% (Clean)</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full w-[86%] rounded-full bg-cyan-400" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between font-mono text-xs">
-              <span className="text-slate-400">Email Gateway</span>
-              <span className="font-semibold text-purple-400">
-                83% (Secure)
+              <span className="text-slate-400">Password Security</span>
+              <span className="font-semibold text-emerald-400">
+                {b.passwordSecurity} / 25 PTS
               </span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full w-[83%] rounded-full bg-purple-500" />
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(b.passwordSecurity / 25) * 100}%` }}
+                transition={{ duration: 1 }}
+                className="h-full rounded-full bg-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* Pillar 2: Websites */}
+          <div className="space-y-1">
+            <div className="flex justify-between font-mono text-xs">
+              <span className="text-slate-400">Website & Phish Shield</span>
+              <span className="font-semibold text-blue-400">
+                {b.websiteSafety} / 25 PTS
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(b.websiteSafety / 25) * 100}%` }}
+                transition={{ duration: 1, delay: 0.1 }}
+                className="h-full rounded-full bg-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Pillar 3: Emails */}
+          <div className="space-y-1">
+            <div className="flex justify-between font-mono text-xs">
+              <span className="text-slate-400">Email Phishing Safety</span>
+              <span className="font-semibold text-purple-400">
+                {b.emailSafety} / 25 PTS
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(b.emailSafety / 25) * 100}%` }}
+                transition={{ duration: 1, delay: 0.2 }}
+                className="h-full rounded-full bg-purple-500"
+              />
+            </div>
+          </div>
+
+          {/* Pillar 4: Previous Scans */}
+          <div className="space-y-1">
+            <div className="flex justify-between font-mono text-xs">
+              <span className="text-slate-400">Clean Scans Record</span>
+              <span className="font-semibold text-cyan-400">
+                {b.previousScansBonus} / 25 PTS
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(b.previousScansBonus / 25) * 100}%` }}
+                transition={{ duration: 1, delay: 0.3 }}
+                className="h-full rounded-full bg-cyan-400"
+              />
             </div>
           </div>
         </div>

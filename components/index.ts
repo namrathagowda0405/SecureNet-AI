@@ -1,6 +1,7 @@
 export * from "./ui/AnimatedBackground";
 export * from "./ui/SectionHeading";
 export * from "./ui/LoadingScanner";
+export * from "./ui/ScanningModal";
 export * from "./dashboard/ThreatBadge";
 export * from "./dashboard/DashboardCard";
 export * from "./dashboard/CyberScoreCard";

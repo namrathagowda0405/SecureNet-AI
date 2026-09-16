@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   History,
   Search,
@@ -9,25 +10,46 @@ import {
   Globe,
   Mail,
   FileWarning,
+  Trash2,
+  Shield,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
 import { DashboardCard, ThreatBadge } from "@/components";
-import { RECENT_ACTIVITIES } from "@/lib/data";
+import { useSecurity } from "@/lib/context/SecurityContext";
 
 export default function HistoryPage() {
+  const { recentScans, clearHistory } = useSecurity();
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterThreat, setFilterThreat] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredActivities = RECENT_ACTIVITIES.filter((act) => {
-    if (filterType !== "all" && act.type !== filterType) return false;
-    if (
-      searchQuery &&
-      !act.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !act.target.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-    return true;
-  });
+  const filteredScans = useMemo(() => {
+    return recentScans.filter((scan) => {
+      if (filterType !== "all" && scan.type !== filterType) return false;
+      if (filterThreat !== "all" && scan.threatLevel !== filterThreat)
+        return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesInput = scan.input.toLowerCase().includes(q);
+        const matchesResult = scan.result.toLowerCase().includes(q);
+        const matchesDetails = scan.details?.toLowerCase().includes(q) ?? false;
+        const matchesReasons =
+          scan.reasons?.some((r) => r.toLowerCase().includes(q)) ?? false;
+        if (
+          !matchesInput &&
+          !matchesResult &&
+          !matchesDetails &&
+          !matchesReasons
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [recentScans, filterType, filterThreat, searchQuery]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -44,6 +66,21 @@ export default function HistoryPage() {
     }
   };
 
+  const handleExportJson = () => {
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(recentScans, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute(
+      "download",
+      `securenet_ai_audit_log_${Date.now()}.json`
+    );
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
   return (
     <div className="space-y-8 pb-12">
       {/* Page Header */}
@@ -55,115 +92,197 @@ export default function HistoryPage() {
             </span>
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
             <span className="font-mono text-[11px] text-slate-400">
-              Audit Trail Verified
+              Session Storage Active
             </span>
           </div>
           <h1 className="font-heading flex items-center gap-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
             <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-2 text-blue-400">
               <History className="h-6 w-6" />
             </div>
-            <span>Scan History & Audit Logs</span>
+            <span>Scan History & Audit Trail</span>
           </h1>
           <p className="font-body mt-1 max-w-2xl text-sm text-slate-400">
-            Immutable log of all automated scans, manual inspections,
-            quarantined threats, and defense mitigation steps.
+            Complete timeline of all credential audits, website heuristic
+            evaluations, and email phishing inspections.
           </p>
         </div>
 
-        <button
-          type="button"
-          className="glass-panel inline-flex items-center gap-2 self-start rounded-xl px-4 py-2 font-mono text-xs font-medium text-slate-300 transition-all hover:border-blue-500/30 hover:text-white active:scale-95 sm:self-auto"
-        >
-          <Download className="h-3.5 w-3.5" />
-          <span>Export Audit Log</span>
-        </button>
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          {recentScans.length > 0 && (
+            <button
+              type="button"
+              onClick={clearHistory}
+              className="glass-panel inline-flex items-center gap-2 rounded-xl px-3.5 py-2 font-mono text-xs text-slate-400 transition-all hover:border-red-500/30 hover:text-red-400 active:scale-95"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Clear History</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleExportJson}
+            disabled={recentScans.length === 0}
+            className="glass-panel inline-flex items-center gap-2 rounded-xl px-4 py-2 font-mono text-xs font-medium text-slate-300 transition-all hover:border-blue-500/30 hover:text-white active:scale-95 disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Export JSON</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-        {/* Type Filter Tabs */}
-        <div className="glass-panel flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-white/[0.08] p-1 sm:w-auto">
-          {[
-            { id: "all", label: "All Events" },
-            { id: "url", label: "Web URLs" },
-            { id: "password", label: "Passwords" },
-            { id: "email", label: "Emails" },
-            { id: "malware", label: "Malware" },
-          ].map((tab) => (
+      <div className="space-y-3">
+        <div className="flex flex-col items-stretch justify-between gap-4 md:flex-row md:items-center">
+          {/* Scan Type Filter */}
+          <div className="glass-panel flex flex-wrap items-center gap-1.5 rounded-xl border border-white/[0.08] p-1">
+            {[
+              { id: "all", label: "All Scans" },
+              { id: "password", label: "Passwords" },
+              { id: "url", label: "Websites" },
+              { id: "email", label: "Emails" },
+              { id: "malware", label: "Binaries" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setFilterType(tab.id)}
+                className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-all ${
+                  filterType === tab.id
+                    ? "border border-blue-500/40 bg-blue-600/30 font-semibold text-blue-300 shadow-sm"
+                    : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full md:w-80">
+            <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search target, domain, result..."
+              className="font-body h-9 w-full rounded-xl border border-white/10 bg-slate-900/60 pr-3 pl-9 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500/50 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Threat Level Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[11px] text-slate-400">
+            Threat Level:
+          </span>
+          {["all", "safe", "low", "medium", "high", "critical"].map((lvl) => (
             <button
-              key={tab.id}
-              onClick={() => setFilterType(tab.id)}
-              className={`rounded-lg px-3 py-1.5 font-mono text-xs transition-all ${
-                filterType === tab.id
-                  ? "border border-blue-500/40 bg-blue-600/30 font-semibold text-blue-300 shadow-sm"
-                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+              key={lvl}
+              onClick={() => setFilterThreat(lvl)}
+              className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] tracking-wider uppercase transition-all ${
+                filterThreat === lvl
+                  ? "border-white/30 bg-white/10 font-bold text-white"
+                  : "border-white/[0.06] bg-transparent text-slate-400 hover:text-white"
               }`}
             >
-              {tab.label}
+              {lvl}
             </button>
           ))}
         </div>
-
-        {/* Search Bar */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search targets or incidents..."
-            className="font-body h-9 w-full rounded-xl border border-white/10 bg-slate-900/60 pr-3 pl-9 text-xs text-slate-200 placeholder-slate-400 focus:border-blue-500/50 focus:outline-none"
-          />
-        </div>
       </div>
 
-      {/* Audit Trail Records List */}
+      {/* Audit Trail List */}
       <DashboardCard
-        title="Event Telemetry Records"
-        subtitle={`Showing ${filteredActivities.length} incident records`}
+        title="Session Telemetry Log"
+        subtitle={`Showing ${filteredScans.length} of ${recentScans.length} total event records`}
       >
-        <div className="-mx-4 divide-y divide-white/[0.06] sm:-mx-6">
-          {filteredActivities.map((event) => (
-            <div
-              key={event.id}
-              className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-white/[0.02] sm:flex-row sm:items-center sm:px-6"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="mt-0.5 shrink-0 rounded-xl border border-white/[0.08] bg-slate-900/80 p-2">
-                  {getTypeIcon(event.type)}
-                </div>
-
-                <div className="max-w-xl space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="font-heading text-sm font-semibold text-white">
-                      {event.title}
-                    </h4>
-                    <ThreatBadge
-                      level={event.severity}
-                      size="sm"
-                      pulse={false}
-                    />
-                  </div>
-                  <div className="truncate font-mono text-xs text-blue-400">
-                    {event.target}
-                  </div>
-                  {event.details && (
-                    <p className="font-body text-xs text-slate-400">
-                      {event.details}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center justify-between gap-1 font-mono text-[11px] text-slate-400 sm:flex-col sm:items-end sm:justify-center">
-                <span>{event.timestamp}</span>
-                <span className="text-[10px] text-slate-400 uppercase">
-                  ID: {event.id}
-                </span>
-              </div>
+        {filteredScans.length === 0 ? (
+          /* Empty State */
+          <div className="space-y-4 py-16 text-center">
+            <div className="glass-panel mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 text-slate-600">
+              <Shield className="h-8 w-8" />
             </div>
-          ))}
-        </div>
+            <div className="space-y-1">
+              <h3 className="font-heading text-base font-semibold text-white">
+                No Scan Records Found
+              </h3>
+              <p className="font-body mx-auto max-w-sm text-xs text-slate-400">
+                No events match your selected filters. Run a scan in any module
+                to record real-time telemetry.
+              </p>
+            </div>
+            <div className="flex justify-center gap-3 pt-2">
+              <Link
+                href="/url-checker"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 font-mono text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500"
+              >
+                <span>Launch Website Scanner</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="-mx-4 divide-y divide-white/[0.06] sm:-mx-6">
+            {filteredScans.map((scan) => (
+              <div
+                key={scan.id}
+                className="flex flex-col justify-between gap-3 p-4 transition-colors hover:bg-white/[0.02] sm:flex-row sm:items-center sm:px-6"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="mt-0.5 shrink-0 rounded-xl border border-white/[0.08] bg-slate-900/80 p-2">
+                    {getTypeIcon(scan.type)}
+                  </div>
+
+                  <div className="max-w-xl space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-heading text-sm font-semibold text-white">
+                        {scan.result}
+                      </h4>
+                      <ThreatBadge
+                        level={scan.threatLevel}
+                        size="sm"
+                        pulse={false}
+                      />
+                      <span className="py-0.2 rounded border border-purple-500/20 bg-purple-500/10 px-1.5 font-mono text-[10px] text-purple-300">
+                        {scan.confidence}% conf
+                      </span>
+                    </div>
+
+                    <div className="truncate font-mono text-xs text-blue-400">
+                      {scan.input}
+                    </div>
+
+                    {scan.details && (
+                      <p className="font-body text-xs leading-relaxed text-slate-400">
+                        {scan.details}
+                      </p>
+                    )}
+
+                    {scan.reasons && scan.reasons.length > 0 && (
+                      <div className="font-body space-y-0.5 pt-0.5 text-[11px] text-slate-500">
+                        {scan.reasons.slice(0, 2).map((r, i) => (
+                          <div key={i} className="truncate">
+                            &bull; {r}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center justify-between gap-1 font-mono text-[11px] text-slate-400 sm:flex-col sm:items-end sm:justify-center">
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <Clock className="h-3 w-3" />
+                    <span>{scan.timestamp}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase">
+                    ID: {scan.id.substring(0, 16)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </DashboardCard>
     </div>
   );

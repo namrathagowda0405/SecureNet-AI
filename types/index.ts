@@ -3,12 +3,31 @@ import type { ReactNode } from "react";
 
 export type ThreatLevel = "safe" | "low" | "medium" | "high" | "critical";
 
+export type CyberHealthCategory = "Excellent" | "Good" | "Average" | "Critical";
+
 export interface NavigationItem {
   title: string;
   href: string;
   icon: LucideIcon;
   badge?: string;
   description?: string;
+}
+
+export interface ScanRecord {
+  id: string;
+  type: "password" | "url" | "email" | "malware" | "system";
+  input: string;
+  result: string;
+  threatLevel: ThreatLevel;
+  confidence: number;
+  timestamp: string;
+  title?: string;
+  target?: string;
+  severity?: ThreatLevel;
+  status?: string;
+  details?: string;
+  reasons?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface ScanActivity {
@@ -18,7 +37,7 @@ export interface ScanActivity {
   target: string;
   timestamp: string;
   severity: ThreatLevel;
-  status: "completed" | "flagged" | "blocked" | "verified";
+  status: "blocked" | "flagged" | "verified" | "completed";
   details?: string;
 }
 
@@ -31,6 +50,7 @@ export interface SecurityRecommendation {
   actionLabel: string;
   actionHref?: string;
   scoreBoost?: number;
+  resolved?: boolean;
 }
 
 export interface FeatureItem {
@@ -50,6 +70,96 @@ export interface StatMetric {
   subtext?: string;
 }
 
+// Password Scanner Models
+export interface PasswordAnalysisResult {
+  score: number; // 0 - 100
+  entropy: number; // informational entropy in bits
+  crackTime: string;
+  threatLevel: ThreatLevel;
+  confidence: number;
+  checks: {
+    minLength: boolean;
+    hasUppercase: boolean;
+    hasLowercase: boolean;
+    hasNumber: boolean;
+    hasSpecial: boolean;
+    noRepeated: boolean;
+    notCommon: boolean;
+  };
+  suggestions: string[];
+}
+
+// URL Scanner Models
+export interface UrlAnalysisResult {
+  verdict: "Safe" | "Suspicious" | "Dangerous";
+  riskScore: number; // 0 - 100 (higher = more dangerous)
+  confidenceScore: number; // 0 - 100
+  threatLevel: ThreatLevel;
+  reasons: string[];
+  checks: {
+    hasHttps: boolean;
+    validLength: boolean;
+    notIpAddress: boolean;
+    noSuspiciousKeywords: boolean;
+    acceptableSubdomains: boolean;
+    noSuspiciousChars: boolean;
+  };
+  domain: string;
+}
+
+// Email Scanner Models
+export interface EmailAnalysisResult {
+  phishingProbability: number; // 0 - 100%
+  confidenceScore: number; // 0 - 100%
+  threatLevel: ThreatLevel;
+  explanation: string;
+  recommendation: string;
+  suspiciousSentences: string[];
+  flags: {
+    suspiciousSender: boolean;
+    urgencyWords: string[];
+    rewardWords: string[];
+    verificationPhrases: string[];
+    suspiciousLinks: string[];
+    excessiveCaps: boolean;
+    attachmentMentions: boolean;
+  };
+}
+
+// Cyber Health Score Model
+export interface CyberHealthScoreBreakdown {
+  overall: number; // 0 - 100
+  category: CyberHealthCategory;
+  passwordSecurity: number; // 0 - 25
+  websiteSafety: number; // 0 - 25
+  emailSafety: number; // 0 - 25
+  previousScansBonus: number; // 0 - 25
+}
+
+// AI Advisor Message Model
+export interface AdvisorMessage {
+  id: string;
+  sender: "user" | "assistant";
+  text: string;
+  timestamp: string;
+  contextPill?: string;
+  suggestedActions?: { label: string; href?: string; prompt?: string }[];
+}
+
+// Global Security State Context Interface
+export interface SecurityContextType {
+  cyberHealthScore: number;
+  healthBreakdown: CyberHealthScoreBreakdown;
+  threatLevel: ThreatLevel;
+  confidenceScore: number;
+  recentScans: ScanRecord[];
+  recommendations: SecurityRecommendation[];
+  addScanRecord: (scan: Omit<ScanRecord, "id" | "timestamp">) => void;
+  clearHistory: () => void;
+  resolveRecommendation: (id: string) => void;
+  resetToDefaults: () => void;
+}
+
 // Component Props Interfaces
 export interface DashboardCardProps {
   title?: string;
@@ -64,9 +174,10 @@ export interface DashboardCardProps {
 export interface CyberScoreCardProps {
   score: number;
   maxScore?: number;
-  status: string;
-  description: string;
-  threatLevel: ThreatLevel;
+  status?: string;
+  description?: string;
+  threatLevel?: ThreatLevel;
+  breakdown?: CyberHealthScoreBreakdown;
   lastUpdated?: string;
   className?: string;
 }
