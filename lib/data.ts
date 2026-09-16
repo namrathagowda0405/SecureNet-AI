@@ -13,6 +13,7 @@ import type {
   ScanActivity,
   SecurityRecommendation,
   StatMetric,
+  ThreatAlert,
 } from "@/types";
 
 export const LANDING_FEATURES: FeatureItem[] = [
@@ -227,5 +228,96 @@ export const RECOMMENDATIONS: SecurityRecommendation[] = [
     impact: "low",
     actionLabel: "Review Policy",
     scoreBoost: 2,
+  },
+];
+
+export const THREAT_ALERTS: ThreatAlert[] = [
+  {
+    id: "alert-1",
+    category: "Phishing",
+    title: "Mass Microsoft 365 Device Code Phishing Surge",
+    description:
+      "Adversary-in-the-Middle (AiTM) campaigns actively proxying MFA sessions via deceptive Cloudflare Worker subdomains.",
+    severity: "critical",
+    timestamp: "8m ago",
+    source: "CISA US-CERT Advisory",
+    vector: "OAuth Device Auth Flow",
+  },
+  {
+    id: "alert-2",
+    category: "Malware",
+    title: "LummaC2 Stealer Distributed via Malicious ZIP Droppers",
+    description:
+      "New evasion variants utilizing double extension naming (.pdf.exe) and DLL side-loading to bypass legacy endpoint detection.",
+    severity: "high",
+    timestamp: "24m ago",
+    source: "SecureNet Edge Telemetry",
+    vector: "Compressed Archive Evasion",
+  },
+  {
+    id: "alert-3",
+    category: "Password",
+    title: "Automated Credential Stuffing Surge Targeting SSO Portals",
+    description:
+      "Residential proxy botnets replaying compromised RockYou2024 password corpuses against enterprise Okta and Azure IDPs.",
+    severity: "high",
+    timestamp: "1h ago",
+    source: "Cloudflare Threat Operations",
+    vector: "Distributed Brute Force",
+  },
+  {
+    id: "alert-4",
+    category: "Network",
+    title: "Active Exploitation of Palo Alto PAN-OS (CVE-2024-3400)",
+    description:
+      "Unauthenticated remote code execution vulnerability being probed globally across edge firewall interfaces.",
+    severity: "critical",
+    timestamp: "2h ago",
+    source: "Shadowserver Foundation",
+    vector: "Edge Gateway Port 443",
+  },
+  {
+    id: "alert-5",
+    category: "Phishing",
+    title: "Deceptive SWIFT Banking Notification Campaign",
+    description:
+      "Targeted corporate spear-phishing using lookalike homoglyph domains and high-urgency executive payment requests.",
+    severity: "medium",
+    timestamp: "3h ago",
+    source: "FS-ISAC Intelligence Feed",
+    vector: "Inbound Email Vector",
+  },
+  {
+    id: "alert-6",
+    category: "Malware",
+    title: "Weaponized Office Macro Invoices (QakBot Emulation)",
+    description:
+      "Macro-enabled .docm containers executing obfuscated PowerShell downloaders from compromised WordPress sites.",
+    severity: "high",
+    timestamp: "5h ago",
+    source: "VirusTotal Telemetry",
+    vector: "VBA Document Trigger",
+  },
+  {
+    id: "alert-7",
+    category: "Network",
+    title: "DNS Amplification Reflection Anomalies Detected",
+    description:
+      "Unmonitored recursive DNS resolvers observed generating atypical UDP bursts across regional subnet ranges.",
+    severity: "low",
+    timestamp: "6h ago",
+    source: "Global BGP Monitor",
+    vector: "UDP Port 53",
+  },
+  {
+    id: "alert-8",
+    category: "Password",
+    title: "Dark Web Leak: 1.4M Fresh Corporate Hashes Indexed",
+    description:
+      "Breached third-party HR management portal database published on underground forums without salt protections.",
+    severity: "medium",
+    timestamp: "8h ago",
+    source: "HaveIBeenPwned Monitor",
+    vector: "Third-Party Supply Chain",
   },
 ];

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import { SecurityProvider } from "@/lib/context/SecurityContext";
+import { ToastContainer } from "@/components";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -41,7 +42,10 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} dark`}
     >
       <body className="min-h-screen bg-[#060816] text-slate-100 antialiased selection:bg-blue-600/40 selection:text-white">
-        <SecurityProvider>{children}</SecurityProvider>
+        <SecurityProvider>
+          {children}
+          <ToastContainer />
+        </SecurityProvider>
       </body>
     </html>
   );

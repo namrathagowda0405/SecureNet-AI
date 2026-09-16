@@ -15,12 +15,17 @@ import {
   Globe,
   Mail,
   Check,
+  FileText,
+  Sparkles,
 } from "lucide-react";
 import {
   DashboardCard,
   CyberScoreCard,
   ThreatBadge,
   SectionHeading,
+  ScanStatistics,
+  ThreatIntelligenceFeed,
+  AISecurityReportModal,
 } from "@/components";
 import { useSecurity } from "@/lib/context/SecurityContext";
 
@@ -33,9 +38,12 @@ export default function DashboardPage() {
     recentScans,
     recommendations,
     resolveRecommendation,
+    latestReport,
+    threatAlerts,
   } = useSecurity();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -69,7 +77,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 pb-12">
       {/* Top Banner / Welcome Row */}
-      <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-2 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2">
             <span className="font-mono text-xs font-semibold tracking-wider text-blue-400 uppercase">
@@ -84,13 +92,14 @@ export default function DashboardPage() {
             Security Overview
           </h1>
           <p className="font-body mt-1 text-sm text-slate-400">
-            Real-time telemetry and heuristic defense active across all vector
-            endpoints.
+            Real-time telemetry, heuristic defenses, and threat intelligence
+            active across all endpoints.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={handleRefresh}
             className="glass-panel inline-flex items-center gap-2 rounded-xl px-3.5 py-2 font-mono text-xs font-medium text-slate-300 transition-all hover:border-blue-500/30 hover:text-white active:scale-95"
           >
@@ -110,6 +119,44 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Latest AI Security Report Notification Banner */}
+      {latestReport && (
+        <div className="glass-panel flex flex-col justify-between gap-4 rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-950/40 via-purple-950/20 to-slate-950/60 p-4 shadow-lg shadow-blue-500/10 sm:flex-row sm:items-center sm:p-5">
+          <div className="flex items-start gap-3 sm:items-center">
+            <div className="rounded-xl border border-blue-500/30 bg-blue-500/20 p-2.5 text-blue-400">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs font-bold text-blue-300 uppercase">
+                  Latest AI Security Investigation
+                </span>
+                <ThreatBadge level={latestReport.threatLevel} size="sm" />
+                <span className="font-mono text-[10px] text-slate-400">
+                  {latestReport.timestamp}
+                </span>
+              </div>
+              <p className="font-body text-xs text-slate-300">
+                Target:{" "}
+                <span className="font-mono font-medium text-white">
+                  {latestReport.target}
+                </span>{" "}
+                &bull; {latestReport.whyGenerated[0]}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsReportModalOpen(true)}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-500/40 bg-blue-600/30 px-4 py-2 font-mono text-xs font-semibold text-blue-200 transition-all hover:border-blue-400 hover:bg-blue-600/50 hover:text-white active:scale-95"
+          >
+            <FileText className="h-4 w-4 text-blue-300" />
+            <span>View Full AI Report</span>
+          </button>
+        </div>
+      )}
+
       {/* Live Statistics Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
         {/* Total Scans Card */}
@@ -118,85 +165,81 @@ export default function DashboardPage() {
             <span>Total Scans Logged</span>
             <span className="font-semibold text-blue-400">Active Session</span>
           </div>
-          <div className="font-mono text-3xl font-bold tracking-tight text-white transition-colors group-hover:text-blue-300">
+          <div className="font-mono text-3xl font-bold tracking-tight text-white">
             {totalScans}
           </div>
           <p className="font-body mt-2 text-xs text-slate-400">
-            Across passwords, URLs, emails & files
+            Telemetry recorded across all vector engines
           </p>
-          <div className="absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-transparent" />
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition-all duration-500 group-hover:bg-blue-500/20" />
         </div>
 
-        {/* Threats Blocked Card */}
+        {/* Clean Scans Rate */}
+        <div className="glass-panel group relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 transition-all duration-300 hover:border-emerald-500/30">
+          <div className="mb-2 flex items-center justify-between font-mono text-xs text-slate-400">
+            <span>Clean Pass Rate</span>
+            <span className="font-semibold text-emerald-400">
+              {cleanScans} Verified
+            </span>
+          </div>
+          <div className="font-mono text-3xl font-bold tracking-tight text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+            {totalScans > 0 ? Math.round((cleanScans / totalScans) * 100) : 100}
+            %
+          </div>
+          <p className="font-body mt-2 text-xs text-slate-400">
+            Samples classified safe or low risk
+          </p>
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition-all duration-500 group-hover:bg-emerald-500/20" />
+        </div>
+
+        {/* High Risk Detections */}
         <div className="glass-panel group relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 transition-all duration-300 hover:border-red-500/30">
           <div className="mb-2 flex items-center justify-between font-mono text-xs text-slate-400">
-            <span>Threats Neutralized</span>
-            <span className="font-semibold text-red-400">High / Critical</span>
+            <span>Threats Intercepted</span>
+            <span className="font-semibold text-red-400">Containment</span>
           </div>
-          <div className="font-mono text-3xl font-bold tracking-tight text-red-400">
+          <div className="font-mono text-3xl font-bold tracking-tight text-red-400 drop-shadow-[0_0_12px_rgba(239,68,68,0.3)]">
             {threatsBlocked}
           </div>
           <p className="font-body mt-2 text-xs text-slate-400">
-            Isolated before system compromise
+            High and critical severity threats identified
           </p>
-          <div className="absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r from-red-500/30 to-transparent" />
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-red-500/10 blur-2xl transition-all duration-500 group-hover:bg-red-500/20" />
         </div>
 
-        {/* Verified Clean Assets */}
-        <div className="glass-panel group relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 transition-all duration-300 hover:border-emerald-500/30">
-          <div className="mb-2 flex items-center justify-between font-mono text-xs text-slate-400">
-            <span>Verified Clean Assets</span>
-            <span className="font-semibold text-emerald-400">
-              {totalScans > 0
-                ? Math.round((cleanScans / totalScans) * 100)
-                : 100}
-              %
-            </span>
-          </div>
-          <div className="font-mono text-3xl font-bold tracking-tight text-emerald-400">
-            {cleanScans}
-          </div>
-          <p className="font-body mt-2 text-xs text-slate-400">
-            Passed all neural heuristic checks
-          </p>
-          <div className="absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-500/30 to-transparent" />
-        </div>
-
-        {/* Defense Confidence Metric */}
+        {/* AI Engine Precision */}
         <div className="glass-panel group relative overflow-hidden rounded-2xl border border-white/[0.08] p-5 transition-all duration-300 hover:border-purple-500/30">
           <div className="mb-2 flex items-center justify-between font-mono text-xs text-slate-400">
-            <span>Detection Confidence</span>
-            <span className="font-semibold text-purple-300">Optimal</span>
+            <span>AI Precision</span>
+            <span className="font-semibold text-purple-400">Deterministic</span>
           </div>
-          <div className="font-mono text-3xl font-bold tracking-tight text-purple-300">
+          <div className="font-mono text-3xl font-bold tracking-tight text-purple-300 drop-shadow-[0_0_12px_rgba(168,85,247,0.3)]">
             {confidenceScore}%
           </div>
           <p className="font-body mt-2 text-xs text-slate-400">
-            Deterministic rule heuristics engine
+            Weighted classification certainty
           </p>
-          <div className="absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500/30 to-transparent" />
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-purple-500/10 blur-2xl transition-all duration-500 group-hover:bg-purple-500/20" />
         </div>
       </div>
 
-      {/* Main Core Section: Cyber Health Score + Threat Level + Confidence Score */}
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
-        {/* Large Circular Cyber Health Score (7 Cols) */}
-        <div className="flex flex-col lg:col-span-7">
+      {/* Cyber Health Score & Engine Overview */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Main Scorecard (7 Cols) */}
+        <div className="lg:col-span-7">
           <CyberScoreCard
             score={cyberHealthScore}
-            maxScore={100}
-            breakdown={healthBreakdown}
             threatLevel={threatLevel}
-            description={`System posture rated ${healthBreakdown.category}. Dynamic 4-pillar index active.`}
-            className="h-full"
+            breakdown={healthBreakdown}
+            lastUpdated="Live sync"
           />
         </div>
 
-        {/* Right Stack: Threat Level + AI Confidence Score (5 Cols) */}
+        {/* Side Threat Level & Confidence (5 Cols) */}
         <div className="flex flex-col gap-6 lg:col-span-5">
-          {/* Threat Level Widget */}
+          {/* Global Threat Level Widget */}
           <DashboardCard
-            title="System Threat Level"
+            title="Global Threat Posture"
             subtitle="Calculated from your active telemetry"
             icon={Shield}
             action={<ThreatBadge level={threatLevel} size="sm" />}
@@ -295,7 +338,7 @@ export default function DashboardPage() {
             icon={Cpu}
             action={
               <span className="rounded-full border border-purple-500/30 bg-purple-500/20 px-2.5 py-1 font-mono text-xs text-purple-300">
-                Rule Matrix v2.0
+                Rule Matrix v3.0
               </span>
             }
             className="flex-1"
@@ -322,14 +365,17 @@ export default function DashboardPage() {
 
               <p className="font-body text-xs leading-relaxed text-slate-400">
                 Deterministic entropy calculations, URL obfuscation heuristics,
-                and RFC header verification.
+                RFC header verification, and static payload analysis.
               </p>
             </div>
           </DashboardCard>
         </div>
       </div>
 
-      {/* Lower Section: Security Recommendations + Recent Activity */}
+      {/* Enhanced Scan Statistics & Threat Distribution (Phase 3 Requirement) */}
+      <ScanStatistics scans={recentScans} />
+
+      {/* Middle Section: Security Recommendations + Recent Activity */}
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
         {/* Security Recommendations (7 Cols) */}
         <div className="space-y-4 lg:col-span-7">
@@ -374,6 +420,7 @@ export default function DashboardPage() {
                     </span>
                   ) : (
                     <button
+                      type="button"
                       onClick={() => resolveRecommendation(rec.id)}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 font-mono text-xs font-semibold text-white shadow-md shadow-blue-500/20 transition-all hover:from-blue-500 hover:to-purple-500 active:scale-95 sm:w-auto"
                     >
@@ -440,6 +487,16 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Global Threat Intelligence Section (Phase 3 Requirement) */}
+      <ThreatIntelligenceFeed alerts={threatAlerts} />
+
+      {/* Holographic AI Security Report Modal Dialog */}
+      <AISecurityReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        report={latestReport}
+      />
     </div>
   );
 }

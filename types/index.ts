@@ -146,6 +146,61 @@ export interface AdvisorMessage {
   suggestedActions?: { label: string; href?: string; prompt?: string }[];
 }
 
+// Malware Scanner Models
+export interface MalwareAnalysisResult {
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  fileHash: string;
+  verdict: string;
+  threatLevel: ThreatLevel;
+  confidenceScore: number;
+  riskScore: number; // 0 - 100
+  aiExplanation: string;
+  indicators: string[];
+  checks: {
+    safeExtension: boolean;
+    noDoubleExtension: boolean;
+    normalEntropy: boolean;
+    noSuspiciousStrings: boolean;
+    validStructure: boolean;
+  };
+}
+
+// AI Security Report Model
+export interface AISecurityReport {
+  id: string;
+  scanType: "password" | "url" | "email" | "malware" | "system";
+  target: string;
+  threatLevel: ThreatLevel;
+  confidenceScore: number;
+  threatSummary: string;
+  whyGenerated: string[];
+  recommendedActions: string[];
+  timestamp: string;
+}
+
+// Threat Intelligence Alert Model
+export interface ThreatAlert {
+  id: string;
+  category: "Phishing" | "Malware" | "Password" | "Network";
+  title: string;
+  description: string;
+  severity: ThreatLevel;
+  timestamp: string;
+  source: string;
+  vector: string;
+}
+
+// Toast Notification Model
+export interface ToastMessage {
+  id: string;
+  type: "success" | "error" | "warning" | "info";
+  title: string;
+  message?: string;
+  duration?: number;
+}
+
 // Global Security State Context Interface
 export interface SecurityContextType {
   cyberHealthScore: number;
@@ -154,10 +209,15 @@ export interface SecurityContextType {
   confidenceScore: number;
   recentScans: ScanRecord[];
   recommendations: SecurityRecommendation[];
+  latestReport: AISecurityReport | null;
+  threatAlerts: ThreatAlert[];
+  toasts: ToastMessage[];
   addScanRecord: (scan: Omit<ScanRecord, "id" | "timestamp">) => void;
   clearHistory: () => void;
   resolveRecommendation: (id: string) => void;
   resetToDefaults: () => void;
+  showToast: (toast: Omit<ToastMessage, "id">) => void;
+  removeToast: (id: string) => void;
 }
 
 // Component Props Interfaces

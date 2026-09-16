@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import type {
   SecurityContextType,
@@ -14,14 +15,17 @@ import type {
   ThreatLevel,
   CyberHealthScoreBreakdown,
   SecurityRecommendation,
+  AISecurityReport,
+  ToastMessage,
 } from "@/types";
 import {
   computeCyberHealthScore,
   deriveGlobalThreatLevel,
 } from "@/lib/scanners/healthScorer";
-import { RECOMMENDATIONS } from "@/lib/data";
+import { RECOMMENDATIONS, THREAT_ALERTS } from "@/lib/data";
+import { generateSecurityReport } from "@/lib/reports/reportGenerator";
 
-const STORAGE_KEY = "securenet_ai_security_state_v2";
+const STORAGE_KEY = "securenet_ai_security_state_v3";
 
 const DEFAULT_SCANS: ScanRecord[] = [
   {
@@ -74,8 +78,17 @@ const DEFAULT_SCANS: ScanRecord[] = [
     timestamp: "4h ago",
     details:
       "Executable masquerading as PDF; embedded PowerShell dropper signature.",
+    reasons: [
+      "Masqueraded double extension (.pdf.exe)",
+      "Unverified executable binary header",
+      "Heuristic match for trojan downloader",
+    ],
   },
 ];
+
+const DEFAULT_REPORT: AISecurityReport = generateSecurityReport(
+  DEFAULT_SCANS[0]
+);
 
 const SecurityContext = createContext<SecurityContextType | undefined>(
   undefined
@@ -84,6 +97,8 @@ const SecurityContext = createContext<SecurityContextType | undefined>(
 export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const toastIdCounter = useRef(1);
+
   const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -117,6 +132,49 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
     return RECOMMENDATIONS;
   });
 
+  const [latestReport, setLatestReport] = useState<AISecurityReport | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        try {
+          const saved = sessionStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.latestReport) return parsed.latestReport;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return DEFAULT_REPORT;
+    }
+  );
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Toast Dispatchers
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const showToast = useCallback(
+    (toast: Omit<ToastMessage, "id">) => {
+      const id = `toast-${toastIdCounter.current++}`;
+      const newToast: ToastMessage = {
+        ...toast,
+        id,
+        duration: toast.duration || 4500,
+      };
+
+      setToasts((prev) => [...prev, newToast]);
+
+      // Auto dismiss
+      setTimeout(() => {
+        removeToast(id);
+      }, newToast.duration);
+    },
+    [removeToast]
+  );
+
   // Sync to browser storage on updates
   useEffect(() => {
     try {
@@ -125,12 +183,13 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
         JSON.stringify({
           scans: recentScans,
           recommendations,
+          latestReport,
         })
       );
     } catch {
       // Storage unavailable or quota exceeded
     }
-  }, [recentScans, recommendations]);
+  }, [recentScans, recommendations, latestReport]);
 
   // Derived calculations
   const healthBreakdown: CyberHealthScoreBreakdown = useMemo(() => {
@@ -160,6 +219,34 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setRecentScans((prev) => [newRecord, ...prev]);
 
+      // Generate in-depth AI Security Report
+      const newReport = generateSecurityReport(newRecord);
+      setLatestReport(newReport);
+
+      // Trigger user-facing reactive Toast notification
+      if (
+        scanData.threatLevel === "critical" ||
+        scanData.threatLevel === "high"
+      ) {
+        showToast({
+          type: "error",
+          title: `Threat Flagged: ${scanData.threatLevel.toUpperCase()}`,
+          message: `${scanData.result} (${scanData.input.substring(0, 24)}...)`,
+        });
+      } else if (scanData.threatLevel === "medium") {
+        showToast({
+          type: "warning",
+          title: "Elevated Risk Detected",
+          message: `${scanData.result} (${scanData.input.substring(0, 24)}...)`,
+        });
+      } else {
+        showToast({
+          type: "success",
+          title: "Scan Clean & Verified",
+          message: `${scanData.result} (${scanData.confidence}% Confidence)`,
+        });
+      }
+
       // If a dangerous item is found, add an immediate tailored recommendation
       if (
         scanData.threatLevel === "high" ||
@@ -167,7 +254,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         const newRec: SecurityRecommendation = {
           id: `rec-auto-${Date.now()}`,
-          title: `Contain Threat: ${scanData.input.substring(0, 32)}...`,
+          title: `Contain Threat: ${scanData.input.substring(0, 28)}...`,
           description: `Immediate remediation advised for detected ${scanData.type} threat: ${scanData.result}.`,
           category:
             scanData.type === "password"
@@ -186,27 +273,46 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
         setRecommendations((prev) => [newRec, ...prev]);
       }
     },
-    []
+    [showToast]
   );
 
   const clearHistory = useCallback(() => {
     setRecentScans([]);
+    showToast({
+      type: "info",
+      title: "History Cleared",
+      message: "Telemetry event logs have been reset for this session.",
+    });
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch {
       // ignore
     }
-  }, []);
+  }, [showToast]);
 
-  const resolveRecommendation = useCallback((id: string) => {
-    setRecommendations((prev) =>
-      prev.map((rec) => (rec.id === id ? { ...rec, resolved: true } : rec))
-    );
-  }, []);
+  const resolveRecommendation = useCallback(
+    (id: string) => {
+      setRecommendations((prev) => {
+        const matched = prev.find((r) => r.id === id);
+        if (matched) {
+          showToast({
+            type: "success",
+            title: "Remediation Applied",
+            message: `Policy "${matched.title}" successfully enforced (+${matched.scoreBoost || 4} PTS).`,
+          });
+        }
+        return prev.map((rec) =>
+          rec.id === id ? { ...rec, resolved: true } : rec
+        );
+      });
+    },
+    [showToast]
+  );
 
   const resetToDefaults = useCallback(() => {
     setRecentScans(DEFAULT_SCANS);
     setRecommendations(RECOMMENDATIONS);
+    setLatestReport(DEFAULT_REPORT);
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch {
@@ -222,10 +328,15 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
       confidenceScore,
       recentScans,
       recommendations,
+      latestReport,
+      threatAlerts: THREAT_ALERTS,
+      toasts,
       addScanRecord,
       clearHistory,
       resolveRecommendation,
       resetToDefaults,
+      showToast,
+      removeToast,
     }),
     [
       cyberHealthScore,
@@ -234,10 +345,14 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({
       confidenceScore,
       recentScans,
       recommendations,
+      latestReport,
+      toasts,
       addScanRecord,
       clearHistory,
       resolveRecommendation,
       resetToDefaults,
+      showToast,
+      removeToast,
     ]
   );
 
