@@ -70,9 +70,13 @@ export interface StatMetric {
   subtext?: string;
 }
 
+export type PasswordStrengthLabel =
+  "Very Weak" | "Weak" | "Medium" | "Strong" | "Very Strong" | "Excellent";
+
 // Password Scanner Models
 export interface PasswordAnalysisResult {
   score: number; // 0 - 100
+  strengthLabel: PasswordStrengthLabel;
   entropy: number; // informational entropy in bits
   crackTime: string;
   threatLevel: ThreatLevel;

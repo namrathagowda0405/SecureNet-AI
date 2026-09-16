@@ -38,17 +38,22 @@ export default function PasswordCheckerPage() {
           ? `${password.substring(0, 2)}***${password.slice(-1)}`
           : "***",
       result:
-        result.score >= 80
-          ? "High Entropy Passphrase Verified"
-          : result.score >= 50
-            ? "Moderate Entropy Credential"
-            : "Vulnerable / Low Entropy Password",
+        result.score === 100
+          ? "Excellent Cryptographic Passphrase"
+          : result.score >= 86
+            ? "Very Strong Entropy Credential"
+            : result.score >= 71
+              ? "Strong Passphrase"
+              : result.score >= 51
+                ? "Moderate Entropy Credential"
+                : "Vulnerable / Low Entropy Password",
       threatLevel: result.threatLevel,
       confidence: result.confidence,
-      details: `Score: ${result.score}/100. Entropy: ${result.entropy} bits. Crack time: ${result.crackTime}.`,
+      details: `Score: ${result.score}/100 (${result.strengthLabel}). Entropy: ${result.entropy} bits. Crack time: ${result.crackTime}.`,
       reasons: result.suggestions,
       metadata: {
         score: result.score,
+        strengthLabel: result.strengthLabel,
         entropy: result.entropy,
       },
     });
@@ -57,12 +62,31 @@ export default function PasswordCheckerPage() {
     setTimeout(() => setHasSaved(false), 2500);
   };
 
-  // Color mapping for score meter
+  // Color mapping for score meter across 6 cybersecurity tiers
   const getScoreColor = (s: number) => {
-    if (s >= 80) return "from-emerald-500 to-teal-400";
-    if (s >= 60) return "from-blue-500 to-cyan-400";
-    if (s >= 40) return "from-amber-500 to-yellow-400";
-    return "from-red-500 to-rose-400";
+    if (s === 100) return "from-emerald-400 via-cyan-400 to-purple-400";
+    if (s >= 86) return "from-emerald-500 to-teal-400";
+    if (s >= 71) return "from-blue-500 to-cyan-400";
+    if (s >= 51) return "from-amber-400 to-yellow-400";
+    if (s >= 31) return "from-orange-500 to-amber-500";
+    return "from-red-600 to-rose-500";
+  };
+
+  const getStrengthBadgeClass = (label: string) => {
+    switch (label) {
+      case "Excellent":
+        return "border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 via-emerald-500/20 to-purple-500/20 text-cyan-300 shadow-sm shadow-cyan-500/20";
+      case "Very Strong":
+        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      case "Strong":
+        return "border-blue-500/30 bg-blue-500/10 text-blue-300";
+      case "Medium":
+        return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      case "Weak":
+        return "border-orange-500/30 bg-orange-500/10 text-orange-300";
+      default:
+        return "border-red-500/30 bg-red-500/10 text-red-300";
+    }
   };
 
   return (
@@ -159,11 +183,20 @@ export default function PasswordCheckerPage() {
 
               {/* Strength Meter Bar */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between font-mono text-xs">
-                  <span className="text-slate-400">
-                    Strength Score:{" "}
-                    <strong className="text-white">{result.score}/100</strong>
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">
+                      Strength Score:{" "}
+                      <strong className="text-white">{result.score}/100</strong>
+                    </span>
+                    <span
+                      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${getStrengthBadgeClass(
+                        result.strengthLabel
+                      )}`}
+                    >
+                      {result.strengthLabel}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-slate-400">Threat Verdict:</span>
                     <ThreatBadge
