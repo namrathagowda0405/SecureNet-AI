@@ -4,6 +4,7 @@ import {
   Globe,
   Mail,
   FileWarning,
+  Image,
   Bot,
   History,
   Settings,
@@ -48,6 +49,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: FileWarning,
     badge: "DeepScan",
     description: "Binary analysis & signature detection",
+  },
+  {
+    title: "Deepfake Detection",
+    href: "/deepfake-checker",
+    icon: Image,
+    badge: "Experimental",
+    description: "Experimental image and sampled-video analysis",
   },
   {
     title: "AI Security Advisor",

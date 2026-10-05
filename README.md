@@ -38,6 +38,21 @@ SecureNet AI delivers real-time telemetry processing, autonomous network threat 
 - **Zero-Trust Policy Engine**: Granular micro-segmentation, identity-aware access rules, and adaptive security policies.
 - **Security Operations Center (SOC) Dashboard**: Unified operational view with actionable intelligence, live incident feeds, and customizable telemetry widgets.
 - **Audit & Compliance**: Centralized forensic logging, compliance reporting, and cryptographic integrity verification.
+- **Deepfake Detection**: An isolated image and short-video upload flow uses a local Python EfficientNet-B0 inference service. Images are validated before inference; videos are decoded in the browser and only sampled JPG frames are sent to the local service. Video results are frame-score averages, not output from a video-trained model.
+
+### Deepfake Model Integration
+
+Start the Python service and the Next.js application separately. From the repository root, run the inference service with the configured Python environment:
+
+```powershell
+.\deepfake_ml\.venv\Scripts\python.exe -m uvicorn service:app --app-dir deepfake_ml --host 127.0.0.1 --port 8001
+```
+
+Then start the Next.js app with `npm run dev`. The Next.js API defaults to the private service URL `http://127.0.0.1:8001`; set the server-only `DEEPFAKE_INFERENCE_URL` environment variable if the service runs elsewhere. The Python service loads the best model from `deepfake_ml/models/best_model.keras` by default; set `DEEPFAKE_MODEL_PATH` in the Python service environment only when the checkpoint is mounted elsewhere. Neither setting is sent to the browser.
+
+The model artifact is not committed or exposed from `public/`. If the checkpoint is missing, the service reports unavailable and the API returns no prediction. The page checks service readiness every 15 seconds and displays the model name once the checkpoint is loadable. The image classifier resizes RGB input to `224 x 224` and does not run separate face detection or cropping. Its displayed sigmoid outputs are raw, uncalibrated scores—not calibrated probabilities, confidence, or proof of authenticity. For installation and checkpoint requirements, see [deepfake_ml/README.md](./deepfake_ml/README.md).
+
+Image uploads support JPG/JPEG, PNG, and WEBP up to 10 MB. Video uploads support MP4/WEBM up to 50 MB and 30 seconds; the browser samples up to 15 frames and posts only those frames to the local inference service. It does not upload the original video to a third-party API. The video score is an arithmetic mean of the image model's frame scores and has not been validated as video-forensics performance.
 
 ---
 

@@ -5,6 +5,14 @@ export type ThreatLevel = "safe" | "low" | "medium" | "high" | "critical";
 
 export type CyberHealthCategory = "Excellent" | "Good" | "Average" | "Critical";
 
+export type {
+  DeepfakeAnalysisResult,
+  DeepfakeInferenceResponse,
+  DeepfakeModelServiceStatus,
+  DeepfakePredictedClass,
+  DeepfakeRiskLevel,
+} from "../lib/deepfake/types";
+
 export interface NavigationItem {
   title: string;
   href: string;

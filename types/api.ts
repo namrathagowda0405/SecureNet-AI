@@ -2,6 +2,7 @@ import type {
   AISecurityReport,
   CyberHealthCategory,
   CyberHealthScoreBreakdown,
+  DeepfakeInferenceResponse,
   EmailAnalysisResult,
   MalwareAnalysisResult,
   PasswordAnalysisResult,
@@ -38,6 +39,9 @@ export type EmailScanResponse = EmailAnalysisResult;
 
 // Malware API
 export type MalwareScanResponse = MalwareAnalysisResult;
+
+// Deepfake API
+export type DeepfakeScanResponse = DeepfakeInferenceResponse;
 
 // Advisor API
 export interface AdvisorApiRequest {

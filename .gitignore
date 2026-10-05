@@ -19,6 +19,8 @@
 
 # production
 /build
+/models/deepfake/
+/deepfake-detection-dataset-v3/
 
 # misc
 .DS_Store
