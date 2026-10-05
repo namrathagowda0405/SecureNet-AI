@@ -1,0 +1,13 @@
+/data/real/*
+!/data/real/.gitkeep
+/data/fake/*
+!/data/fake/.gitkeep
+/data/preparation_summary.json
+/data/huggingface-cache/
+/models/*
+!/models/.gitkeep
+/results/*
+!/results/.gitkeep
+__pycache__/
+*.py[cod]
+/.venv/

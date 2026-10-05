@@ -1,0 +1,10 @@
+tensorflow>=2.20,<3
+scikit-learn>=1.6,<2
+matplotlib>=3.9,<4
+numpy>=1.26,<3
+Pillow>=10,<13
+datasets>=3.3,<5
+keras-hub>=0.32,<1
+fastapi>=0.115,<1
+python-multipart>=0.0.20,<1
+uvicorn>=0.34,<1
